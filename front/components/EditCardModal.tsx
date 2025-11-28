@@ -35,7 +35,6 @@ export default function EditCardModal({
   const [priority, setPriority] = useState<Priority>("media");
   const [status, setStatus] = useState<Status>("backlog");
 
-  // 🔥 Corrigido: deadline sempre YYYY-MM-DD
   const [deadline, setDeadline] = useState<string | null>(null);
 
   const [estimatedHours, setEstimatedHours] = useState<number | null>(null);
@@ -45,17 +44,13 @@ export default function EditCardModal({
   const [labels, setLabels] = useState<string>("");
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
 
-  // ================================================================
-  // CARREGAR CARD E NORMALIZAR DEADLINE
-  // ================================================================
-  useEffect(() => {
+   useEffect(() => {
     if (card) {
       setTitle(card.title);
       setDescription(card.description);
       setPriority(card.priority);
       setStatus(card.status);
 
-      // 🔥 NORMALIZA A DEADLINE AQUI
       if (card.deadline) {
         const clean = card.deadline.toString().substring(0, 10);
         setDeadline(clean);
@@ -71,9 +66,6 @@ export default function EditCardModal({
     }
   }, [card, open]);
 
-  // ================================================================
-  // SALVAR
-  // ================================================================
   function handleSave() {
     if (!card) return;
 
@@ -84,7 +76,6 @@ export default function EditCardModal({
       priority,
       status,
 
-      // 🔥 Deadline sempre no formato correcto
       deadline: deadline ? deadline.substring(0, 10) : null,
 
       estimatedHours,
@@ -101,9 +92,7 @@ export default function EditCardModal({
     onClose();
   }
 
-  // ================================================================
-  // CHECKLIST
-  // ================================================================
+
   function handleAddChecklistItem() {
     const newItem: ChecklistItem = {
       id: crypto.randomUUID(),
@@ -136,9 +125,7 @@ export default function EditCardModal({
   const progress =
     totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
 
-  // ================================================================
-  // UI
-  // ================================================================
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-xl bg-slate-950/90 text-slate-50 border border-slate-700/60">

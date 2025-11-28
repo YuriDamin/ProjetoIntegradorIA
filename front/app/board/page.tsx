@@ -18,9 +18,6 @@ export default function BoardPage() {
   const [selectedColumn, setSelectedColumn] = useState<ColumnId | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
-  // =====================================================
-  //  PROTEÇÃO DE ROTA (checa cookie "token")
-  // =====================================================
   useEffect(() => {
     const hasToken = document.cookie.includes("token=");
     if (!hasToken) {
@@ -28,9 +25,6 @@ export default function BoardPage() {
     }
   }, []);
 
-  // =====================================================
-  //  CARREGAR BOARD DO BACKEND
-  // =====================================================
   async function loadBoard() {
     try {
       setLoading(true);
@@ -52,9 +46,6 @@ export default function BoardPage() {
     loadBoard();
   }, []);
 
-  // =====================================================
-  //  WEBSOCKET — Atualizações em tempo real
-  // =====================================================
   useEffect(() => {
     const socket = io("http://localhost:3001", {
       withCredentials: true,
@@ -78,18 +69,12 @@ export default function BoardPage() {
     };
   }, []);
 
-  // =====================================================
-  //  ABRIR MODAL DE EDIÇÃO
-  // =====================================================
   function onCardClick(card: Card, columnId: string) {
     setSelectedCard(card);
     setSelectedColumn(columnId as ColumnId);
     setModalOpen(true);
   }
 
-  // =====================================================
-  //  CRIAR CARD
-  // =====================================================
   async function handleAddCard(columnId: string, title: string) {
     const colId = columnId as ColumnId;
 
@@ -118,9 +103,6 @@ export default function BoardPage() {
     setData(updated);
   }
 
-  // =====================================================
-  //  SALVAR CARD EDITADO
-  // =====================================================
   async function handleSaveCard(updatedCard: Card) {
     await fetch(`/api/cards/${updatedCard.id}`, {
       method: "PUT",
@@ -149,9 +131,6 @@ export default function BoardPage() {
     setData(updated);
   }
 
-  // =====================================================
-  //  DELETAR CARD
-  // =====================================================
   async function handleDeleteCard(cardId: string) {
     await fetch(`/api/cards/${cardId}`, {
       method: "DELETE",
@@ -177,9 +156,6 @@ export default function BoardPage() {
     setModalOpen(false);
   }
 
-  // =====================================================
-  //  DRAG & DROP - MOVER CARD ENTRE COLUNAS
-  // =====================================================
   function mapStatus(columnId: ColumnId): Status {
     if (columnId === "doing") return "doing";
     if (columnId === "done") return "done";
@@ -232,18 +208,13 @@ export default function BoardPage() {
     setData(updated);
   }
 
-  // =====================================================
-  //  LOGOUT
-  // =====================================================
+
   function handleLogout() {
     document.cookie = "token=; path=/; max-age=0";
     localStorage.clear();
     window.location.href = "/login";
   }
 
-  // =====================================================
-  //  LOADING
-  // =====================================================
   if (loading || !data) {
     return (
       <div className="min-h-screen flex items-center justify-center text-white text-xl">
@@ -252,9 +223,7 @@ export default function BoardPage() {
     );
   }
 
-  // =====================================================
-  //  RENDER
-  // =====================================================
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#050f25] to-[#071a33] p-10">
 

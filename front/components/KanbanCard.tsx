@@ -49,16 +49,7 @@ export default function KanbanCard({ card, index, onClick }: CardProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // ==============================================================
-  // 🔥 DEADLINE — CORREÇÃO DEFINITIVA
-  //
-  // Permite:
-  //  - "2025-11-28"
-  //  - "2025-11-28T03:00:00.000Z"
-  //  - "2025-11-28 00:00:00"
-  //  - Evita a data ficar um dia antes
-  //  - Nunca gera Invalid Date
-  // ==============================================================
+
 
   let deadlineDate: Date | null = null;
   let deadlineText = "";
@@ -67,10 +58,8 @@ export default function KanbanCard({ card, index, onClick }: CardProps) {
   let deadlineIcon = "📅";
 
   if (card.deadline) {
-    // limpa qualquer coisa além de YYYY-MM-DD
     const raw = card.deadline.toString().substring(0, 10);
 
-    // interpreta corretamente
     deadlineDate = new Date(`${raw}T00:00:00`);
 
     if (!isNaN(deadlineDate.getTime())) {
@@ -94,8 +83,6 @@ export default function KanbanCard({ card, index, onClick }: CardProps) {
       }
     }
   }
-
-  // =====================================================================
 
   function renderCard(provided: any) {
     return (

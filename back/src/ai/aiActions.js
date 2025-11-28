@@ -1,9 +1,5 @@
-// src/ai/aiActions.js
 const { Card, Checklist, Column } = require("../models");
 
-// ======================================================================
-// PRIORIDADE — normalização completa
-// ======================================================================
 function mapPriority(str = "") {
   const p = String(str).toLowerCase();
 
@@ -12,12 +8,10 @@ function mapPriority(str = "") {
   if (p.includes("med") || p.includes("méd") || p.includes("medium")) return "media";
   if (p.includes("baix") || p.includes("low")) return "baixa";
 
-  return "media"; // fallback seguro
+  return "media"; 
 }
 
-// ======================================================================
-// COLUNA — normalização completa
-// ======================================================================
+
 function mapColumn(str = "") {
   const c = String(str).toLowerCase();
 
@@ -25,7 +19,7 @@ function mapColumn(str = "") {
   if (c.includes("andamento") || c.includes("doing")) return "doing";
   if (c.includes("concluído") || c.includes("concluido") || c.includes("done")) return "done";
 
-  return "backlog"; // fallback seguro
+  return "backlog"; 
 }
 
 module.exports = {
@@ -47,10 +41,7 @@ module.exports = {
 
     for (const action of actions) {
       try {
-        // ======================================================================
-        // 1. CRIAR CARD
-        // ======================================================================
-        if (action.type === "create-card") {
+          if (action.type === "create-card") {
           const title =
             action.title ||
             action.name ||
@@ -60,7 +51,6 @@ module.exports = {
           const priority = mapPriority(action.priority || action.prioridade);
           const columnId = action.columnId || mapColumn(action.column || action.localizacao);
 
-          // Criar card COMPLETO — nunca nulo
           const newCard = await Card.create({
             title,
             description: "",
@@ -86,9 +76,6 @@ module.exports = {
           continue;
         }
 
-        // ======================================================================
-        // 2. MOVER CARD
-        // ======================================================================
         if (action.type === "move-card") {
           const cardTitle =
             action.cardTitle ||
@@ -127,9 +114,7 @@ module.exports = {
           continue;
         }
 
-        // ======================================================================
-        // 3. ADICIONAR CHECKLIST
-        // ======================================================================
+
         if (action.type === "add-checklist") {
           const cardTitle =
             action.cardTitle ||
@@ -149,7 +134,6 @@ module.exports = {
             continue;
           }
 
-          // Criar cada item da checklist
           for (const text of items) {
             if (!text) continue;
 
@@ -170,9 +154,6 @@ module.exports = {
           continue;
         }
 
-        // ======================================================================
-        // AÇÃO DESCONHECIDA
-        // ======================================================================
         results.push({
           ok: false,
           type: action.type,

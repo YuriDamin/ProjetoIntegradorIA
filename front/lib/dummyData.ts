@@ -11,7 +11,7 @@ export const initialData: BoardData = {
           title: "Configurar projeto",
           description: "Configurar Next + TS",
           priority: "alta",
-          deadline: "2025-11-27", // exemplo para aparecer no calendário
+          deadline: "2025-11-27", 
           estimatedHours: 2,
           workedHours: 0,
           assignee: "Vitor",

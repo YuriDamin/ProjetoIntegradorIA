@@ -8,10 +8,8 @@ const app = express();
 app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 app.use(express.json());
 
-// Importa models + associações
 require("./models");
 
-// Rotas
 app.use("/auth", require("./routes/authRoutes"));
 app.use("/columns", require("./routes/columnRoutes"));
 app.use("/cards", require("./routes/cardRoutes"));
