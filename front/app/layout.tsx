@@ -14,7 +14,9 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "Meu Kanban",
-  description: "Gerencie suas tarefas com IA",
+  icons: {
+    icon: "/kanban.ico"
+  }
 };
 
 
