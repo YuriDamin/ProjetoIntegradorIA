@@ -36,9 +36,11 @@ export default function LoginPage() {
         return;
       }
 
-      
       document.cookie = `token=${data.token}; path=/; max-age=604800`; // 7 dias
 
+      if (data.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+      }
       router.push("/board");
 
     } catch (err) {

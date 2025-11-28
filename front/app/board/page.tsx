@@ -7,6 +7,7 @@ import { io } from "socket.io-client";
 import KanbanColumn from "@/components/KanbanColumn";
 import EditCardModal from "@/components/EditCardModal";
 import ChatbotButton from "@/components/ChatbotButton";
+import Topbar from "@/components/Topbar";
 
 import { BoardData, Card, ColumnId, Status } from "@/types/kanban";
 
@@ -18,10 +19,22 @@ export default function BoardPage() {
   const [selectedColumn, setSelectedColumn] = useState<ColumnId | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
+  const [userName, setUserName] = useState("Usuário");
+
   useEffect(() => {
     const hasToken = document.cookie.includes("token=");
     if (!hasToken) {
       window.location.href = "/login";
+    }
+
+    const stored = localStorage.getItem("user");
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        setUserName(parsed.name ?? "Usuário");
+      } catch {
+        setUserName("Usuário");
+      }
     }
   }, []);
 
@@ -51,17 +64,8 @@ export default function BoardPage() {
       withCredentials: true,
     });
 
-    socket.on("connect", () => {
-      console.log("WebSocket conectado:", socket.id);
-    });
-
     socket.on("board-updated", () => {
-      console.log("🔄 board-updated recebido — recarregando...");
       loadBoard();
-    });
-
-    socket.on("disconnect", () => {
-      console.log("WebSocket desconectado.");
     });
 
     return () => {
@@ -171,7 +175,7 @@ export default function BoardPage() {
 
     const movedCard = data.columns[sourceColId].cards[source.index];
 
-      await fetch(`/api/cards/${movedCard.id}/move`, {
+    await fetch(`/api/cards/${movedCard.id}/move`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
@@ -182,6 +186,7 @@ export default function BoardPage() {
     });
 
     const updated: BoardData = { ...data };
+
     updated.columns[sourceColId] = {
       ...updated.columns[sourceColId],
       cards: [...updated.columns[sourceColId].cards],
@@ -208,7 +213,6 @@ export default function BoardPage() {
     setData(updated);
   }
 
-
   function handleLogout() {
     document.cookie = "token=; path=/; max-age=0";
     localStorage.clear();
@@ -223,21 +227,12 @@ export default function BoardPage() {
     );
   }
 
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#050f25] to-[#071a33] p-10">
+    <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0A1224] to-[#020617] p-6">
 
-      {/* LOGOUT */}
-      <div className="flex justify-end mb-6">
-        <button
-          onClick={handleLogout}
-          className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg shadow-md transition"
-        >
-          Logout
-        </button>
-      </div>
+      <Topbar userName={userName} onLogout={handleLogout} />
 
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto mt-10 space-y-8">
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex gap-8 justify-center flex-wrap pb-8">
             {data.columnOrder.map((colId) => (

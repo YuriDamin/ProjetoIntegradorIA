@@ -11,7 +11,7 @@ interface ChatbotModalProps {
 interface ChatMessage {
   from: "user" | "bot";
   text: string;
-  cardId?: string; // ⭐ Adicionado para link do card
+  cardId?: string; 
 }
 
 export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
@@ -23,9 +23,6 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
   const botSound = useRef<HTMLAudioElement | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
 
-  // =====================================================
-  // CARREGAR HISTÓRICO
-  // =====================================================
   useEffect(() => {
     const saved = localStorage.getItem("chat_history");
 
@@ -41,18 +38,12 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
     }
   }, []);
 
-  // =====================================================
-  // SALVAR HISTÓRICO
-  // =====================================================
   useEffect(() => {
     if (messages.length > 0) {
       localStorage.setItem("chat_history", JSON.stringify(messages));
     }
   }, [messages]);
 
-  // =====================================================
-  // LIMPAR HISTÓRICO
-  // =====================================================
   function clearHistory() {
     localStorage.removeItem("chat_history");
     setMessages([
@@ -63,19 +54,16 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
     ]);
   }
 
-  // carregar som
   useEffect(() => {
     botSound.current = new Audio(
       "data:audio/mp3;base64,//uQxAAAAAAAAAAAA..."
     );
   }, []);
 
-  // scroll automático
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
 
-  // Fechar clicando fora
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
@@ -88,9 +76,6 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
 
   if (!open) return null;
 
-  // =====================================================
-  // ENVIO PARA IA
-  // =====================================================
   const handleSend = async () => {
     if (!input.trim() || typing) return;
 
@@ -119,24 +104,20 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
       let botReply = "";
       let createdCardId: string | undefined = undefined;
 
-      // =====================================================
-      // FORMATAÇÃO DAS AÇÕES
-      // =====================================================
       if (isJsonMode) {
         if (data.reply && data.reply.actions) {
           const actions = data.reply.actions;
           let summary = "";
 
-          actions.forEach((action) => {
+          actions.forEach((action: { ok: any; type: string; title: any; priority: any; columnId: any; id: string | undefined; cardTitle: any; toColumn: any; itemsCount: any; error: any; }) => {
             if (action.ok) {
-              // criação de card
               if (action.type === "create-card") {
                 summary += `🟢 <b>Card criado com sucesso!</b><br>`;
                 summary += `• Título: <i>${action.title}</i><br>`;
                 summary += `• Prioridade: <i>${action.priority}</i><br>`;
                 summary += `• Coluna: <i>${action.columnId}</i><br><br>`;
 
-                createdCardId = action.id; // ⭐ pegar ID do card criado
+                createdCardId = action.id; 
               }
 
               if (action.type === "move-card") {
@@ -166,13 +147,11 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
         botReply = data.reply || "Desculpe, não consegui responder agora.";
       }
 
-      // adiciona resposta
       setMessages((prev) => [
         ...prev,
         { from: "bot", text: botReply, cardId: createdCardId },
       ]);
 
-      // tocar som
       if (botSound.current) {
         botSound.current.currentTime = 0;
         botSound.current.play().catch(() => {});
@@ -187,9 +166,6 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
     setTyping(false);
   };
 
-  // =====================================================
-  // Função para enviar evento highlight
-  // =====================================================
   function highlightCard(cardId: string) {
     window.dispatchEvent(
       new CustomEvent("highlight-card", { detail: cardId })

@@ -42,9 +42,10 @@ export default function EditCardModal({
 
   const [assignee, setAssignee] = useState<string>("");
   const [labels, setLabels] = useState<string>("");
+
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
 
-   useEffect(() => {
+  useEffect(() => {
     if (card) {
       setTitle(card.title);
       setDescription(card.description);
@@ -75,9 +76,7 @@ export default function EditCardModal({
       description,
       priority,
       status,
-
       deadline: deadline ? deadline.substring(0, 10) : null,
-
       estimatedHours,
       workedHours,
       assignee: assignee.trim() === "" ? null : assignee.trim(),
@@ -91,7 +90,6 @@ export default function EditCardModal({
     onSave(updated);
     onClose();
   }
-
 
   function handleAddChecklistItem() {
     const newItem: ChecklistItem = {
@@ -125,40 +123,63 @@ export default function EditCardModal({
   const progress =
     totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
 
-
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-xl bg-slate-950/90 text-slate-50 border border-slate-700/60">
+      <DialogContent
+        className="
+          max-w-xl
+          bg-white/10 backdrop-blur-xl
+          border border-white/20 
+          shadow-2xl
+          text-white
+          rounded-2xl
+          transition-all
+        "
+      >
         <DialogHeader>
           <DialogTitle className="text-lg font-semibold">
             Editar cartão
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 mt-4">
+          {/* Título */}
           <Input
             placeholder="Título"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="bg-slate-900/80 border-slate-700 text-sm"
+            className="
+              bg-white/10 border-white/20
+              text-white placeholder:text-white/50
+            "
           />
 
+          {/* Descrição */}
           <Textarea
             placeholder="Descrição"
-            className="min-h-[100px] bg-slate-900/80 border-slate-700 text-sm"
+            className="
+              min-h-[100px]
+              bg-white/10 border-white/20
+              text-white placeholder:text-white/50
+            "
             value={description}
             onChange={(e) => setDescription(e.target.value)}
           />
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* Prioridade e Status */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold mb-1">
                 Prioridade
               </label>
               <select
-                className="w-full border border-slate-700 rounded-md px-2 py-1 text-sm bg-slate-900/80"
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as Priority)}
+                className="
+                  w-full px-2 py-1 rounded-md
+                  bg-white/10 border border-white/20
+                  text-white text-sm
+                "
               >
                 <option value="baixa">Baixa</option>
                 <option value="media">Média</option>
@@ -172,9 +193,13 @@ export default function EditCardModal({
                 Status interno
               </label>
               <select
-                className="w-full border border-slate-700 rounded-md px-2 py-1 text-sm bg-slate-900/80"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as Status)}
+                className="
+                  w-full px-2 py-1 rounded-md
+                  bg-white/10 border border-white/20
+                  text-white text-sm
+                "
               >
                 <option value="backlog">Backlog</option>
                 <option value="doing">Em andamento</option>
@@ -184,7 +209,8 @@ export default function EditCardModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* Deadline e responsável */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold mb-1">
                 Deadline
@@ -195,7 +221,10 @@ export default function EditCardModal({
                 onChange={(e) =>
                   setDeadline(e.target.value === "" ? null : e.target.value)
                 }
-                className="bg-slate-900/80 border-slate-700 text-sm"
+                className="
+                  bg-white/10 border-white/20
+                  text-white
+                "
               />
             </div>
 
@@ -204,18 +233,22 @@ export default function EditCardModal({
                 Responsável
               </label>
               <Input
-                placeholder="Nome da pessoa"
                 value={assignee}
+                placeholder="Nome da pessoa"
                 onChange={(e) => setAssignee(e.target.value)}
-                className="bg-slate-900/80 border-slate-700 text-sm"
+                className="
+                  bg-white/10 border-white/20
+                  text-white
+                "
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* Estimativa e horas trabalhadas */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold mb-1">
-                Estimativa (horas)
+                Estimativa (h)
               </label>
               <Input
                 type="number"
@@ -226,66 +259,81 @@ export default function EditCardModal({
                     e.target.value === "" ? null : Number(e.target.value)
                   )
                 }
-                className="bg-slate-900/80 border-slate-700 text-sm"
+                className="
+                  bg-white/10 border-white/20
+                  text-white
+                "
               />
             </div>
 
             <div>
               <label className="block text-xs font-semibold mb-1">
-                Tempo trabalhado (horas)
+                Tempo trabalhado (h)
               </label>
               <Input
                 type="number"
                 min={0}
                 value={workedHours}
                 onChange={(e) => setWorkedHours(Number(e.target.value) || 0)}
-                className="bg-slate-900/80 border-slate-700 text-sm"
+                className="
+                  bg-white/10 border-white/20
+                  text-white
+                "
               />
             </div>
           </div>
 
+          {/* Labels */}
           <div>
             <label className="block text-xs font-semibold mb-1">
               Labels (separadas por vírgula)
             </label>
             <Input
-              placeholder="ex: frontend, urgente, sprint 3"
               value={labels}
+              placeholder="ex: frontend, urgente"
               onChange={(e) => setLabels(e.target.value)}
-              className="bg-slate-900/80 border-slate-700 text-sm"
+              className="
+                bg-white/10 border-white/20
+                text-white
+              "
             />
           </div>
 
+          {/* Progresso */}
           {totalItems > 0 && (
             <div className="space-y-1 mt-4">
-              <div className="flex justify-between text-xs font-semibold text-slate-200">
+              <div className="flex justify-between text-xs text-white/80">
                 <span>Progresso</span>
                 <span>{progress}%</span>
               </div>
+
               <Progress
                 value={progress}
-                className="h-2 rounded-full bg-slate-800 [&>div]:bg-emerald-500"
+                className="h-2 rounded-full bg-slate-800 [&>div]:bg-emerald-400"
               />
             </div>
           )}
 
+          {/* Checklist */}
           <div>
-            <div className="flex items-center justify-between mb-2 mt-3">
+            <div className="flex justify-between items-center mb-2 mt-3">
               <span className="text-xs font-semibold">Checklist</span>
 
               <Button
-                type="button"
                 size="sm"
-                className="border border-slate-600 text-xs text-white bg-transparent hover:bg-slate-800"
                 onClick={handleAddChecklistItem}
+                className="
+                  bg-transparent border border-white/30 text-white text-xs
+                  hover:bg-white/10
+                "
               >
                 + Item
               </Button>
             </div>
 
             {checklist.length === 0 && (
-              <p className="text-xs text-slate-400">
-                Nenhum item. Clique em &quot;+ Item&quot; para adicionar.
+              <p className="text-xs text-white/60">
+                Nenhum item. Clique em “+ Item” para adicionar.
               </p>
             )}
 
@@ -295,14 +343,12 @@ export default function EditCardModal({
                   key={item.id}
                   className="
                     flex items-center gap-3
-                    bg-[#111827]/60
-                    rounded-xl
-                    px-4 py-3
-                    border border-slate-700/40
-                    shadow-[0_0_12px_rgba(0,0,0,0.15)]
+                    bg-white/5
+                    px-4 py-3 rounded-xl
+                    border border-white/10
+                    shadow
                     transition-all
-                    hover:border-emerald-600/40
-                    hover:bg-[#1a2537]/60
+                    hover:bg-white/10 hover:border-white/20
                   "
                 >
                   <input
@@ -310,33 +356,31 @@ export default function EditCardModal({
                     checked={item.done}
                     onChange={() => handleChecklistToggle(item.id)}
                     className="
-                      size-4 rounded-md
-                      border border-slate-600
-                      bg-slate-900/90
+                      size-4 rounded-md cursor-pointer
+                      border border-white/40
+                      bg-white/10
                       checked:bg-emerald-500 checked:border-emerald-500
-                      transition-all cursor-pointer
                     "
                   />
 
                   <Input
-                    className="
-                      flex-1 text-sm bg-transparent border-none shadow-none
-                      focus-visible:ring-0
-                      placeholder:text-slate-400
-                    "
-                    placeholder="Descrição do item"
                     value={item.text}
+                    placeholder="Descrição do item"
                     onChange={(e) =>
                       handleChecklistTextChange(item.id, e.target.value)
                     }
+                    className="
+                      flex-1 bg-transparent border-none shadow-none
+                      text-white placeholder:text-white/50
+                      focus-visible:ring-0
+                    "
                   />
 
                   <button
                     onClick={() => handleChecklistRemove(item.id)}
                     className="
                       text-red-400 hover:text-red-300
-                      hover:bg-red-500/10
-                      p-2 rounded-md transition
+                      p-2 rounded-md hover:bg-red-500/20
                     "
                   >
                     ✕
@@ -346,10 +390,14 @@ export default function EditCardModal({
             </div>
           </div>
 
+          {/* Botões finais */}
           <div className="flex justify-between pt-4">
             <Button
               onClick={handleSave}
-              className="bg-emerald-500 hover:bg-emerald-400"
+              className="
+                bg-emerald-500 hover:bg-emerald-400
+                text-white
+              "
             >
               Salvar
             </Button>

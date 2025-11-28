@@ -1,6 +1,6 @@
-export type Status = "backlog" | "doing" | "done";
+export type Priority = "baixa" | "media" | "alta" | "urgente";
 
-export type ColumnId = "backlog" | "doing" | "done";
+export type Status = "backlog" | "doing" | "review" | "done";
 
 export interface ChecklistItem {
   id: string;
@@ -12,7 +12,7 @@ export interface Card {
   id: string;
   title: string;
   description: string;
-  priority: "baixa" | "media" | "alta" | string;
+  priority: Priority;  
   status: Status;
   deadline: string | null;
   estimatedHours: number | null;
@@ -20,17 +20,16 @@ export interface Card {
   assignee: string | null;
   labels: string[];
   checklist: ChecklistItem[];
-
-  columnId: ColumnId;
+  columnId: string;
 }
 
-export interface ColumnData {
-  id: ColumnId;
+export interface Column {
+  id: string;
   title: string;
   cards: Card[];
 }
 
 export interface BoardData {
-  columnOrder: ColumnId[];
-  columns: Record<ColumnId, ColumnData>;
+  columns: Record<string, Column>;
+  columnOrder: string[];
 }
