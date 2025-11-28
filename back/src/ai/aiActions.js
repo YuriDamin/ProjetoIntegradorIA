@@ -1,0 +1,162 @@
+const { Card, Checklist, Column } = require("../models");
+
+function mapPriority(str = "") {
+  const p = String(str).toLowerCase();
+
+  if (p.includes("urg")) return "urgente";
+  if (p.includes("alt") || p.includes("high")) return "alta";
+  if (p.includes("med") || p.includes("méd") || p.includes("medium")) return "media";
+  if (p.includes("baix") || p.includes("low")) return "baixa";
+
+  return "media"; 
+}
+
+function mapColumn(str = "") {
+  const c = String(str).toLowerCase();
+
+  if (c.includes("backlog")) return "backlog";
+  if (c.includes("andamento") || c.includes("doing")) return "doing";
+  if (c.includes("concluído") || c.includes("concluido") || c.includes("done")) return "done";
+
+  return "backlog"; 
+}
+
+module.exports = {
+ 
+
+  async executeActions(actions = []) {
+    const results = [];
+
+    for (const action of actions) {
+      try {
+     
+        if (action.type === "create-card") {
+          const title =
+            action.title ||
+            action.name ||
+            action.nome ||
+            "Nova tarefa";
+
+          const priority = mapPriority(action.priority || action.prioridade);
+          const columnId = action.columnId || mapColumn(action.column || action.localizacao);
+
+          const newCard = await Card.create({
+            title,
+            description: "",
+            priority,
+            columnId,
+            status: columnId,
+            deadline: null,
+            estimatedHours: null,
+            workedHours: 0,
+            assignee: null,
+            labels: [],
+          });
+
+          results.push({
+            ok: true,
+            type: "create-card",
+            id: newCard.id,
+            title,
+            priority,
+            columnId,
+          });
+
+          continue;
+        }
+
+        if (action.type === "move-card") {
+          const cardTitle =
+            action.cardTitle ||
+            action.title ||
+            action.nome;
+
+          const toColumn = mapColumn(
+            action.toColumn ||
+            action.targetColumn ||
+            action.localizacao
+          );
+
+          const card = await Card.findOne({ where: { title: cardTitle } });
+          if (!card) {
+            results.push({
+              ok: false,
+              type: "move-card",
+              cardTitle,
+              error: "Card não encontrado",
+            });
+            continue;
+          }
+
+          await card.update({
+            columnId: toColumn,
+            status: toColumn,
+          });
+
+          results.push({
+            ok: true,
+            type: "move-card",
+            cardTitle,
+            toColumn,
+          });
+
+          continue;
+        }
+
+        if (action.type === "add-checklist") {
+          const cardTitle =
+            action.cardTitle ||
+            action.title ||
+            action.nome;
+
+          const items = action.items || action.checklist || [];
+
+          const card = await Card.findOne({ where: { title: cardTitle } });
+          if (!card) {
+            results.push({
+              ok: false,
+              type: "add-checklist",
+              cardTitle,
+              error: "Card não encontrado",
+            });
+            continue;
+          }
+
+          for (const text of items) {
+            if (!text) continue;
+
+            await Checklist.create({
+              text: String(text),
+              done: false,
+              cardId: card.id,
+            });
+          }
+
+          results.push({
+            ok: true,
+            type: "add-checklist",
+            cardTitle,
+            itemsCount: items.length,
+          });
+
+          continue;
+        }
+
+        results.push({
+          ok: false,
+          type: action.type,
+          error: "Ação desconhecida",
+        });
+
+      } catch (err) {
+        results.push({
+          ok: false,
+          type: action.type,
+          error: err.message,
+        });
+      }
+    }
+
+    return results;
+  },
+};
