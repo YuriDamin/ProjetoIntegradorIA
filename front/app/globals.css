@@ -121,3 +121,12 @@
   }
 }
 @import "react-big-calendar/lib/css/react-big-calendar.css";
+.highlight-card {
+  transition: box-shadow 0.3s ease-in-out, transform 0.3s;
+  box-shadow: 0 0 20px #22c55e;
+  transform: scale(1.03);
+}
+.highlight-card:hover {
+  box-shadow: 0 0 30px #16a34a;
+  transform: scale(1.05);
+}

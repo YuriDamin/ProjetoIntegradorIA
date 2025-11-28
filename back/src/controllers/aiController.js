@@ -1,9 +1,11 @@
+// controllers/aiController.js
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 require("dotenv").config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const aiActions = require("../ai/aiActions");
 
+// extrai JSON do resultado do Gemini
 function extractJSON(result) {
   try {
     const text =
@@ -23,6 +25,7 @@ function extractJSON(result) {
   }
 }
 
+// prompt base para modo comando
 function buildJsonPrompt(userMessage) {
   return `
 Você é um agente especializado em automatizar um quadro Kanban.
@@ -80,6 +83,7 @@ module.exports = {
 
       const result = await baseModel.generateContent(prompt);
 
+      // ===== JSON MODE: interpretar e executar ações =====
       if (jsonMode) {
         const json = extractJSON(result);
 
@@ -93,16 +97,20 @@ module.exports = {
           });
         }
 
+        // executa as ações no banco
         const execResult = await aiActions.executeActions(json.actions);
 
+        // 🔔 NOVO: avisa todos os clients que o board foi atualizado
         const io = req.app.get("io");
         if (io) {
           io.emit("board-updated");
         }
 
+        // devolve o que foi feito (para aparecer no chat)
         return res.json({ reply: { actions: execResult } });
       }
 
+      // ===== TEXTO NORMAL =====
       const text = result.response.text();
       return res.json({ reply: text });
 

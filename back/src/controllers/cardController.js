@@ -1,12 +1,17 @@
 const { Column, Card, Checklist } = require("../models");
 
-
+// ---------------------------------------------------------
+// Normalização de status por coluna
+// ---------------------------------------------------------
 function mapStatus(columnId) {
   if (columnId === "doing") return "doing";
   if (columnId === "done") return "done";
   return "backlog";
 }
 
+// ---------------------------------------------------------
+// Normalização de prioridade
+// ---------------------------------------------------------
 function normalizePriority(p) {
   if (!p) return "media";
   const val = p.toLowerCase();
@@ -15,9 +20,12 @@ function normalizePriority(p) {
     return val;
   }
 
-  return "media"; 
+  return "media"; // fallback seguro
 }
 
+// ---------------------------------------------------------
+// Normalizar checklist
+// ---------------------------------------------------------
 function normalizeChecklist(list) {
   return list?.map((item) => ({
     id: item.id,
@@ -28,7 +36,9 @@ function normalizeChecklist(list) {
 
 module.exports = {
 
- 
+  // ========================================================================
+  // CRIAR CARD
+  // ========================================================================
   async create(req, res) {
     try {
       const { title, columnId } = req.body;
@@ -70,7 +80,9 @@ module.exports = {
     }
   },
 
-
+  // ========================================================================
+  // EDITAR CARD
+  // ========================================================================
   async update(req, res) {
     try {
       const { id } = req.params;
@@ -79,27 +91,38 @@ module.exports = {
       const card = await Card.findByPk(id, { include: [Checklist] });
       if (!card) return res.status(404).json({ error: "Card não encontrado" });
 
+      // -------------------------------
+      // Normalizar prioridade
+      // -------------------------------
       if (body.priority) {
         body.priority = normalizePriority(body.priority);
       }
 
+      // -------------------------------
+      // Normalizar status inválido
+      // -------------------------------
       if (body.status && !["backlog", "doing", "done"].includes(body.status)) {
         body.status = mapStatus(card.columnId);
       }
 
-
+      // Atualização parcial
       await card.update(body);
 
+      // -----------------------------------------------------------------
+      // CHECKLIST — Sincronização completa
+      // -----------------------------------------------------------------
       if (Array.isArray(body.checklist)) {
         const existing = await Checklist.findAll({ where: { cardId: id } });
         const existingIds = existing.map((c) => c.id);
         const incomingIds = body.checklist.filter((i) => i.id).map((i) => i.id);
 
+        // remover itens apagados
         const toDelete = existingIds.filter((eid) => !incomingIds.includes(eid));
         if (toDelete.length) {
           await Checklist.destroy({ where: { id: toDelete } });
         }
 
+        // atualizar ou criar novos itens
         for (const item of body.checklist) {
           if (item.id && existingIds.includes(item.id)) {
             await Checklist.update(
@@ -116,6 +139,7 @@ module.exports = {
         }
       }
 
+      // Card atualizado
       const updated = await Card.findByPk(id, { include: [Checklist] });
 
       return res.json({
@@ -131,6 +155,9 @@ module.exports = {
     }
   },
 
+  // ========================================================================
+  // REMOVER CARD
+  // ========================================================================
   async remove(req, res) {
     try {
       const { id } = req.params;
@@ -146,6 +173,9 @@ module.exports = {
     }
   },
 
+  // ========================================================================
+  // MOVER CARD ENTRE COLUNAS
+  // ========================================================================
   async move(req, res) {
     try {
       const { id } = req.params;
