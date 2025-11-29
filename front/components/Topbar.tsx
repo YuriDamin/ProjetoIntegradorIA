@@ -22,11 +22,13 @@ export default function Topbar({ userName, onLogout }: TopbarProps) {
       "
     >
       <h1 className="text-white text-xl font-semibold tracking-wide">
-        Meu Kanban
+        Kanbanize
       </h1>
 
       {/* ÁREA DO USUÁRIO */}
       <div className="flex items-center gap-5">
+
+
 
         {/* Informações do usuário */}
         <div
