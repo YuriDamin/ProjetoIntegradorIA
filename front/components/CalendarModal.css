@@ -1,0 +1,279 @@
+/* ===== RESET E CORREÇÕES GERAIS ===== */
+.rbc-toolbar {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    background-color: #fff !important;
+    padding: 15px !important;
+    border-bottom: 2px solid #155dfc !important;
+    margin-bottom: 20px !important;
+}
+
+.rbc-toolbar-label {
+    font-size: 24px !important;
+    color: #155dfc !important;
+    font-weight: bold !important;
+    flex: 1 !important;
+    text-align: center !important;
+    order: 2 !important;
+}
+
+/* ===== BOTÕES DE NAVEGAÇÃO (ESQUERDA) ===== */
+.rbc-btn-group:first-child {
+    order: 1 !important;
+    display: flex !important;
+    gap: 5px !important;
+}
+
+/* ===== BOTÕES DE VISUALIZAÇÃO (DIREITA) ===== */
+.rbc-btn-group:last-child {
+    order: 3 !important;
+    display: flex !important;
+    gap: 5px !important;
+}
+
+/* ===== ESTILO BASE DOS BOTÕES ===== */
+.rbc-toolbar button {
+    background: white !important;
+    border: 2px solid #155dfc !important;
+    color: #155dfc !important;
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    cursor: pointer !important;
+    transition: all 0.3s ease !important;
+    min-width: 60px !important;
+    pointer-events: all !important;
+    position: relative !important;
+    z-index: 10 !important;
+}
+
+/* Hover dos botões */
+.rbc-toolbar button:hover {
+    background: #155dfc !important;
+    color: white !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 8px rgba(21, 93, 252, 0.3) !important;
+}
+
+/* Botão ativo/selecionado */
+.rbc-toolbar button.rbc-active {
+    background: #155dfc !important;
+    color: white !important;
+    border-color: #155dfc !important;
+}
+
+/* Foco dos botões */
+.rbc-toolbar button:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 3px rgba(21, 93, 252, 0.3) !important;
+}
+
+/* ===== CABEÇALHO DOS DIAS ===== */
+.rbc-header {
+    color: #ffffff !important;
+    font-size: 16px !important;
+    background: linear-gradient(135deg, #155dfc 0%, #0d4bd1 100%) !important;
+    border: none !important;
+    padding: 12px 8px !important;
+    border-radius: 12px !important;
+    margin: 2px !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+}
+
+/* ===== NÚMEROS DOS DIAS ===== */
+.rbc-button-link {
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #155dfc !important;
+    background: rgba(21, 93, 252, 0.1) !important;
+    border-radius: 8px !important;
+    padding: 6px !important;
+    margin: 4px !important;
+    display: inline-block !important;
+    min-width: 30px !important;
+    transition: all 0.2s ease !important;
+}
+
+.rbc-button-link:hover {
+    background: rgba(21, 93, 252, 0.2) !important;
+    transform: scale(1.05) !important;
+}
+
+/* ===== CÉLULAS DO CALENDÁRIO ===== */
+.rbc-month-view {
+    border: none !important;
+    background: transparent !important;
+}
+
+.rbc-day-bg {
+    border-radius: 12px !important;
+    border: 1px solid #e5e7eb !important;
+    margin: 3px !important;
+    background: #ffffff !important;
+    transition: all 0.2s ease !important;
+}
+
+.rbc-day-bg:hover {
+    background: #f8fafc !important;
+    border-color: #155dfc !important;
+}
+
+.rbc-off-range-bg {
+    background: #fafafa !important;
+    opacity: 0.6 !important;
+}
+
+/* ===== DIA ATUAL ===== */
+.rbc-today {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%) !important;
+    border: 2px solid #155dfc !important;
+}
+
+.rbc-current .rbc-button-link {
+    background: #155dfc !important;
+    color: white !important;
+}
+
+/* ===== EVENTOS ===== */
+.rbc-event {
+    border-radius: 8px !important;
+    padding: 4px 8px !important;
+    font-weight: 600 !important;
+    font-size: 12px !important;
+    border: none !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    margin: 1px 0 !important;
+}
+
+.rbc-event:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2) !important;
+}
+
+.rbc-event-content {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    font-size: 12px !important;
+}
+
+/* ===== BOTÃO "VER MAIS" ===== */
+.rbc-show-more {
+    background: rgba(21, 93, 252, 0.1) !important;
+    color: #155dfc !important;
+    border: 1px solid rgba(21, 93, 252, 0.3) !important;
+    border-radius: 6px !important;
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    margin: 2px !important;
+    text-align: center !important;
+    transition: all 0.2s ease !important;
+}
+
+.rbc-show-more:hover {
+    background: rgba(21, 93, 252, 0.2) !important;
+}
+
+/* ===== VISUALIZAÇÃO SEMANA/DIA ===== */
+.rbc-time-view .rbc-header {
+    background: linear-gradient(135deg, #155dfc 0%, #0d4bd1 100%) !important;
+    color: #fff !important;
+    padding: 10px 8px !important;
+    border-radius: 8px !important;
+    margin: 2px !important;
+}
+
+.rbc-time-view .rbc-today {
+    background: rgba(21, 93, 252, 0.1) !important;
+}
+
+.rbc-current-time-indicator {
+    background-color: #155dfc !important;
+    height: 2px !important;
+}
+
+.rbc-timeslot-group {
+    border-bottom: 1px solid #e5e7eb !important;
+}
+
+.rbc-time-slot {
+    border-top: 1px solid #f1f5f9 !important;
+}
+
+/* ===== VISUALIZAÇÃO AGENDA ===== */
+.rbc-agenda-view {
+    border: 1px solid #e5e7eb !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
+}
+
+.rbc-agenda-table thead {
+    background: linear-gradient(135deg, #155dfc 0%, #0d4bd1 100%) !important;
+}
+
+.rbc-agenda-table thead th {
+    color: white !important;
+    font-weight: 600 !important;
+    padding: 12px !important;
+    border: none !important;
+}
+
+.rbc-agenda-table tbody td {
+    padding: 12px !important;
+    border-bottom: 1px solid #e5e7eb !important;
+}
+
+.rbc-agenda-table tbody tr:hover {
+    background: rgba(21, 93, 252, 0.05) !important;
+}
+
+/* ===== REMOVER BORDAS PADRÃO ===== */
+.rbc-time-content,
+.rbc-time-view,
+.rbc-time-header-content,
+.rbc-time-header {
+    border: none !important;
+}
+
+.rbc-month-row {
+    border: none !important;
+}
+
+.rbc-row-segment {
+    padding: 1px 2px !important;
+}
+
+/* ===== CORREÇÃO PARA MOBILE ===== */
+@media (max-width: 768px) {
+    .rbc-toolbar {
+        flex-direction: column !important;
+        gap: 10px !important;
+    }
+    
+    .rbc-toolbar-label {
+        order: 1 !important;
+        margin-bottom: 10px !important;
+    }
+    
+    .rbc-btn-group:first-child {
+        order: 2 !important;
+    }
+    
+    .rbc-btn-group:last-child {
+        order: 3 !important;
+    }
+    
+    .rbc-toolbar button {
+        padding: 6px 12px !important;
+        font-size: 12px !important;
+        min-width: 50px !important;
+    }
+}

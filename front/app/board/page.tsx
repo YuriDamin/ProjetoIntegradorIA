@@ -8,8 +8,11 @@ import KanbanColumn from "@/components/KanbanColumn";
 import EditCardModal from "@/components/EditCardModal";
 import ChatbotButton from "@/components/ChatbotButton";
 import Topbar from "@/components/Topbar";
+import CalendarModal from "@/components/CalendarModal";
 
-import { BoardData, Card, ColumnId, Status } from "@/types/kanban";
+import { BoardData, Card, Status } from "@/types/kanban";
+
+type ColumnId = 'backlog' | 'doing' | 'done';
 
 export default function BoardPage() {
   const [data, setData] = useState<BoardData | null>(null);
@@ -18,6 +21,8 @@ export default function BoardPage() {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [selectedColumn, setSelectedColumn] = useState<ColumnId | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const [userName, setUserName] = useState("Usuário");
 
@@ -105,6 +110,52 @@ export default function BoardPage() {
     };
 
     setData(updated);
+  }
+
+  // Função para abrir modal de nova tarefa
+  function handleAddTask() {
+    setSelectedCard(null);
+    setSelectedColumn("backlog");
+    setModalOpen(true);
+  }
+
+  // Função para criar tarefa com data específica (vinda do calendário)
+  function handleCreateTaskWithDate(date: string) {
+    const newCard: Partial<Card> = {
+      dueDate: date,
+      status: 'backlog',
+      priority: 'medium',
+      columnId: 'backlog',
+      title: '',
+      description: ''
+    };
+    
+    setSelectedCard(newCard as Card);
+    setSelectedColumn("backlog");
+    setModalOpen(true);
+  }
+
+  // Função para abrir tarefa selecionada no calendário
+  function handleSelectTaskFromCalendar(task: { id: string }) {
+    // Buscar a tarefa completa no board
+    if (!data) return;
+    
+    let foundCard: Card | null = null;
+    let foundColumn: ColumnId | null = null;
+
+    Object.entries(data.columns).forEach(([colId, column]) => {
+      const card = column.cards.find(c => c.id === task.id);
+      if (card) {
+        foundCard = card;
+        foundColumn = colId as ColumnId;
+      }
+    });
+
+    if (foundCard && foundColumn) {
+      setSelectedCard(foundCard);
+      setSelectedColumn(foundColumn);
+      setModalOpen(true);
+    }
   }
 
   async function handleSaveCard(updatedCard: Card) {
@@ -213,6 +264,10 @@ export default function BoardPage() {
     setData(updated);
   }
 
+  function handleCalendarClick() {
+    setCalendarOpen(true);
+  }
+
   function handleLogout() {
     document.cookie = "token=; path=/; max-age=0";
     localStorage.clear();
@@ -221,16 +276,25 @@ export default function BoardPage() {
 
   if (loading || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-white text-xl">
-        Carregando board...
+      <div className="min-h-screen bg-linear-to-br from-[#050816] via-[#0A1224] to-[#020617] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-t-blue-500 border-blue-200 rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white text-xl">Carregando board...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0A1224] to-[#020617] p-6">
+    <div className="min-h-screen bg-linear-to-br from-[#050816] via-[#0A1224] to-[#020617] p-6">
 
-      <Topbar userName={userName} onLogout={handleLogout} />
+      <Topbar 
+        userName={userName} 
+        onLogout={handleLogout}
+        onCalendarClick={handleCalendarClick}
+        onAddTask={handleAddTask}
+        currentPage="board"
+      />
 
       <div className="max-w-7xl mx-auto mt-10 space-y-8">
         <DragDropContext onDragEnd={onDragEnd}>
@@ -247,12 +311,21 @@ export default function BoardPage() {
           </div>
         </DragDropContext>
 
+        {/* Modal de Edição de Card */}
         <EditCardModal
           open={modalOpen}
           card={selectedCard}
           onClose={() => setModalOpen(false)}
           onSave={handleSaveCard}
           onDelete={handleDeleteCard}
+        />
+
+        {/* Modal do Calendário - POPUP */}
+        <CalendarModal
+          isOpen={calendarOpen}
+          onClose={() => setCalendarOpen(false)}
+          onSelectTask={handleSelectTaskFromCalendar}
+          onCreateTask={handleCreateTaskWithDate}
         />
       </div>
 
