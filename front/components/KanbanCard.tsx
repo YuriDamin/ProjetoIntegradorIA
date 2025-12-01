@@ -17,9 +17,6 @@ export default function KanbanCard({ card, index, onClick }: CardProps) {
   const progress =
     totalItems === 0 ? 0 : Math.round((completedItems / totalItems) * 100);
 
-  // ----------------------------
-  // PRIORIDADE (mantido igual)
-  // ----------------------------
   const priorityConfig: Record<
     string,
     { color: string; icon: string; bg: string }
@@ -49,9 +46,7 @@ export default function KanbanCard({ card, index, onClick }: CardProps) {
   const normalized = card.priority?.toLowerCase?.() ?? "media";
   const priority = priorityConfig[normalized] ?? priorityConfig["media"];
 
-  // ----------------------------
-  // DEADLINE (mantido igual)
-  // ----------------------------
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -87,9 +82,6 @@ export default function KanbanCard({ card, index, onClick }: CardProps) {
     }
   }
 
-  // ----------------------------
-  // RENDER CARD
-  // ----------------------------
   function renderCard(provided: any) {
     return (
       <div

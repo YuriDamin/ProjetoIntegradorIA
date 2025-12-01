@@ -9,14 +9,14 @@ import EditCardModal from "@/components/EditCardModal";
 import ChatbotButton from "@/components/ChatbotButton";
 import Topbar from "@/components/Topbar";
 
-import { BoardData, Card, ColumnId, Status } from "@/types/kanban";
+import { BoardData, Card, Column, Status } from "@/types/kanban";
 
 export default function BoardPage() {
   const [data, setData] = useState<BoardData | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
-  const [selectedColumn, setSelectedColumn] = useState<ColumnId | null>(null);
+  const [selectedColumn, setSelectedColumn] = useState<Column | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
 
   const [userName, setUserName] = useState("Usuário");
@@ -75,12 +75,12 @@ export default function BoardPage() {
 
   function onCardClick(card: Card, columnId: string) {
     setSelectedCard(card);
-    setSelectedColumn(columnId as ColumnId);
+    setSelectedColumn(columnId as unknown as Column);
     setModalOpen(true);
   }
 
   async function handleAddCard(columnId: string, title: string) {
-    const colId = columnId as ColumnId;
+    const colId = columnId; // colId is a string
 
     const res = await fetch("/api/cards", {
       method: "POST",
@@ -117,7 +117,7 @@ export default function BoardPage() {
 
     if (!data || !selectedColumn) return;
 
-    const colId = selectedColumn;
+    const colId = String(selectedColumn);
 
     const updated: BoardData = {
       ...data,
@@ -143,7 +143,7 @@ export default function BoardPage() {
 
     if (!data || !selectedColumn) return;
 
-    const colId = selectedColumn;
+    const colId = String(selectedColumn);
 
     const updated: BoardData = {
       ...data,
@@ -160,18 +160,18 @@ export default function BoardPage() {
     setModalOpen(false);
   }
 
-  function mapStatus(columnId: ColumnId): Status {
-    if (columnId === "doing") return "doing";
-    if (columnId === "done") return "done";
-    return "backlog";
+  function mapStatus(columnId: string): Status {
+      if (columnId === "doing") return "doing";
+      if (columnId === "done") return "done";
+      return "backlog";
   }
 
   async function onDragEnd(result: DropResult) {
     const { source, destination } = result;
     if (!destination || !data) return;
 
-    const sourceColId = source.droppableId as ColumnId;
-    const destColId = destination.droppableId as ColumnId;
+    const sourceColId = source.droppableId as string;
+    const destColId = destination.droppableId as string;
 
     const movedCard = data.columns[sourceColId].cards[source.index];
 
