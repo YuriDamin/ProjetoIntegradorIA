@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import Topbar from "@/components/Topbar";
 import { BoardData, Card } from "@/types/kanban";
 import CalendarDayModal from "@/components/CalendarDayModal";
-
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  DropResult,
+} from "@hello-pangea/dnd";
 
 function formatMonthYear(date: Date) {
   return date.toLocaleDateString("pt-BR", {
@@ -15,10 +20,10 @@ function formatMonthYear(date: Date) {
 
 function getMonthMatrix(currentDate: Date): Date[][] {
   const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
+  const month = currentDate.getMonth(); 
 
   const firstDayOfMonth = new Date(year, month, 1);
-  const startWeekDay = firstDayOfMonth.getDay(); 
+  const startWeekDay = firstDayOfMonth.getDay();
 
   const matrix: Date[][] = [];
   let current = new Date(year, month, 1 - startWeekDay);
@@ -41,7 +46,6 @@ function dateKey(d: Date) {
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
-
 
 export default function CalendarPage() {
   const [userName, setUserName] = useState("Usuário");
@@ -93,6 +97,64 @@ export default function CalendarPage() {
     loadBoard();
   }, []);
 
+  async function handleDragEnd(result: DropResult) {
+    const { destination, source, draggableId } = result;
+
+    if (!destination || !board) return;
+
+    const fromDate = source.droppableId; 
+    const toDate = destination.droppableId; 
+
+    if (fromDate === toDate) return;
+
+    let foundColumnId: string | null = null;
+
+    for (const colId of board.columnOrder) {
+      const col = board.columns[colId];
+      const found = col.cards.find((c) => c.id === draggableId);
+      if (found) {
+        foundColumnId = colId;
+        break;
+      }
+    }
+
+    if (!foundColumnId) return;
+
+    try {
+      await fetch(`/api/cards/${draggableId}`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deadline: toDate,
+        }),
+      });
+    } catch (err) {
+      console.error("Erro ao atualizar deadline:", err);
+    }
+
+    setBoard((prev) => {
+      if (!prev || !foundColumnId) return prev;
+
+      const col = prev.columns[foundColumnId];
+
+      const updatedColumn = {
+        ...col,
+        cards: col.cards.map((c) =>
+          c.id === draggableId ? { ...c, deadline: toDate } : c
+        ),
+      };
+
+      return {
+        ...prev,
+        columns: {
+          ...prev.columns,
+          [foundColumnId]: updatedColumn,
+        },
+      };
+    });
+  }
+
   if (loading || !board) {
     return (
       <div className="min-h-screen flex items-center justify-center text-white text-xl">
@@ -122,15 +184,20 @@ export default function CalendarPage() {
       .forEach((card) => {
         if (!card.deadline) return;
 
-        const key =
-          typeof card.deadline === "string"
-            ? card.deadline.substring(0, 10)
-            : new Date(card.deadline).toISOString().substring(0, 10);
+        let key = "";
+        if (typeof card.deadline === "string") {
+          key = card.deadline.substring(0, 10);
+        } else if ((card.deadline as any) instanceof Date) {
+          key = dateKey(card.deadline);
+        } else {
+          key = String(card.deadline).substring(0, 10);
+        }
 
         if (!tasksByDate[key]) tasksByDate[key] = [];
         tasksByDate[key].push(card);
       });
   });
+
 
   const month = currentDate.getMonth();
   const todayKey = dateKey(new Date());
@@ -139,11 +206,15 @@ export default function CalendarPage() {
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
   function goPrevMonth() {
-    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    setCurrentDate(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
+    );
   }
 
   function goNextMonth() {
-    setCurrentDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    setCurrentDate(
+      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
+    );
   }
 
   function openDayModal(day: Date) {
@@ -169,18 +240,17 @@ export default function CalendarPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0A1224] to-[#020617] p-6">
-
       {/* Topbar */}
       <Topbar userName={userName} onLogout={handleLogout} />
 
       <div className="max-w-6xl mx-auto mt-10 space-y-6 text-white">
-
         {/* Cabeçalho */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Calendário de Tarefas</h1>
             <p className="text-slate-300 text-sm mt-1">
-              Visualize as tarefas organizadas por dia.
+              Visualize e arraste as tarefas entre os dias para alterar o
+              deadline.
             </p>
           </div>
 
@@ -208,7 +278,6 @@ export default function CalendarPage() {
 
         {/* FILTROS */}
         <div className="flex flex-wrap items-center gap-6 p-4 bg-white/5 border border-white/10 rounded-xl">
-
           {/* Coluna */}
           <div className="flex items-center gap-2">
             <label className="text-sm text-slate-300">Coluna:</label>
@@ -250,113 +319,139 @@ export default function CalendarPage() {
             >
               <option value="">Todos</option>
               {uniqueAssignees.map((resp) => (
-                <option key={resp} value={resp}>{resp}</option>
+                <option key={resp} value={resp}>
+                  {resp}
+                </option>
               ))}
             </select>
           </div>
-
         </div>
 
-        {/* Cabeçalho dos dias */}
+        {/* Cabeçalho dos dias da semana */}
         <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-slate-200">
           {weekDays.map((wd) => (
-            <div key={wd} className="py-2 bg-white/5 rounded-lg border border-white/10">
+            <div
+              key={wd}
+              className="py-2 bg-white/5 rounded-lg border border-white/10"
+            >
               {wd}
             </div>
           ))}
         </div>
 
-        {/* Grade do mês */}
-        <div className="grid grid-cols-7 gap-2">
-          {monthMatrix.map((week, wi) =>
-            week.map((day, di) => {
-              const key = dateKey(day);
-              const tasks = tasksByDate[key] || [];
+        {/* Grade do mês com Drag & Drop */}
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="grid grid-cols-7 gap-2">
+            {monthMatrix.map((week, wi) =>
+              week.map((day, di) => {
+                const key = dateKey(day);
+                const tasks = tasksByDate[key] || [];
 
-              const isCurrentMonth = day.getMonth() === month;
-              const isToday = key === todayKey;
+                const isCurrentMonth = day.getMonth() === month;
+                const isToday = key === todayKey;
 
-              const baseClasses =
-                "min-h-[120px] rounded-xl p-2 border flex flex-col bg-white/5 transition-all cursor-pointer";
+                const baseClasses =
+                  "min-h-[120px] rounded-xl p-2 border flex flex-col bg-white/5 transition-all cursor-pointer";
 
-              const borderColor = isToday
-                ? "border-yellow-400"
-                : isCurrentMonth
-                ? "border-white/15"
-                : "border-white/5";
+                const borderColor = isToday
+                  ? "border-yellow-400"
+                  : isCurrentMonth
+                  ? "border-white/15"
+                  : "border-white/5";
 
-              const bgColor =
-                isCurrentMonth ? "bg-white/10" : "bg-white/5 opacity-60";
+                const bgColor =
+                  isCurrentMonth ? "bg-white/10" : "bg-white/5 opacity-60";
 
-              return (
-                <div
-                  key={`${wi}-${di}`}
-                  onClick={() => openDayModal(day)}
-                  className={`${baseClasses} ${borderColor} ${bgColor}`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span
-                      className={`text-xs font-semibold ${
-                        isCurrentMonth ? "text-white" : "text-slate-400"
-                      }`}
-                    >
-                      {day.getDate()}
-                    </span>
+                return (
+                  <Droppable droppableId={key} key={`${wi}-${di}`}>
+                    {(provided) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        onClick={() => openDayModal(day)}
+                        className={`${baseClasses} ${borderColor} ${bgColor}`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span
+                            className={`text-xs font-semibold ${
+                              isCurrentMonth ? "text-white" : "text-slate-400"
+                            }`}
+                          >
+                            {day.getDate()}
+                          </span>
 
-                    {isToday && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/40">
-                        Hoje
-                      </span>
-                    )}
-                  </div>
-
-                  {/* tarefas do dia */}
-                  <div className="space-y-1 mt-1 overflow-hidden">
-                    {tasks.slice(0, 3).map((task) => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-
-                      const d = new Date(`${key}T00:00:00`);
-
-                      let dot = "bg-emerald-500";
-                      if (d < today) dot = "bg-red-500";
-                      if (key === todayKey) dot = "bg-yellow-400";
-
-                      return (
-                        <div
-                          key={task.id}
-                          className="
-                            flex items-center gap-2 px-2 py-1 text-[11px]
-                            bg-black/30 border border-white/10 rounded-lg
-                            truncate
-                          "
-                        >
-                          <span className={`w-2 h-2 rounded-full ${dot}`} />
-                          <span className="truncate">{task.title}</span>
+                          {isToday && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/40">
+                              Hoje
+                            </span>
+                          )}
                         </div>
-                      );
-                    })}
 
-                    {tasks.length > 3 && (
-                      <span className="text-[10px] text-slate-300">
-                        +{tasks.length - 3} tarefa(s)...
-                      </span>
-                    )}
+                        {/* Tarefas do dia (Draggable) */}
+                        <div className="space-y-1 mt-1 overflow-hidden">
+                          {tasks.map((task, index) => {
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
 
-                    {tasks.length === 0 && (
-                      <span className="text-[10px] text-slate-500">
-                        — sem tarefas —
-                      </span>
+                            const d = new Date(`${key}T00:00:00`);
+
+                            let dot = "bg-emerald-500";
+                            if (d < today) dot = "bg-red-500";
+                            if (key === todayKey) dot = "bg-yellow-400";
+
+                            return (
+                              <Draggable
+                                key={task.id}
+                                draggableId={task.id}
+                                index={index}
+                              >
+                                {(dragProvided, snapshot) => (
+                                  <div
+                                    ref={dragProvided.innerRef}
+                                    {...dragProvided.draggableProps}
+                                    {...dragProvided.dragHandleProps}
+                                    className={`
+                                      flex items-center gap-2 px-2 py-1 text-[11px]
+                                      bg-black/30 border border-white/10 rounded-lg
+                                      truncate transition-all
+                                      ${
+                                        snapshot.isDragging
+                                          ? "scale-105 bg-white/20 shadow-lg"
+                                          : ""
+                                      }
+                                    `}
+                                  >
+                                    <span
+                                      className={`w-2 h-2 rounded-full ${dot}`}
+                                    />
+                                    <span className="truncate">
+                                      {task.title}
+                                    </span>
+                                  </div>
+                                )}
+                              </Draggable>
+                            );
+                          })}
+
+                          {tasks.length === 0 && (
+                            <span className="text-[10px] text-slate-500">
+                              — sem tarefas —
+                            </span>
+                          )}
+
+                          {provided.placeholder}
+                        </div>
+                      </div>
                     )}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+                  </Droppable>
+                );
+              })
+            )}
+          </div>
+        </DragDropContext>
       </div>
 
-      {/* Modal de detalhes */}
+      {/* Modal de detalhes do dia */}
       <CalendarDayModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
