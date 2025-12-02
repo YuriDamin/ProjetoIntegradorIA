@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Calendar, LayoutGrid } from "lucide-react";
 
 interface TopbarProps {
   userName: string;
@@ -21,14 +21,48 @@ export default function Topbar({ userName, onLogout }: TopbarProps) {
         transition-all
       "
     >
-      <h1 className="text-white text-xl font-semibold tracking-wide">
-        Meu Kanban
-      </h1>
+      {/* Esquerda: Título + Botões */}
+      <div className="flex items-center gap-6">
+        <h1 className="text-white text-xl font-semibold tracking-wide">
+          Meu Kanban
+        </h1>
 
-      {/* ÁREA DO USUÁRIO */}
+        {/* Botão Kanban + ícone */}
+        <a
+          href="/board"
+          className="
+            flex items-center gap-2
+            px-4 py-2 rounded-xl
+            bg-white/10 hover:bg-white/20
+            text-white text-sm font-medium
+            border border-white/10
+            transition
+          "
+        >
+          <LayoutGrid size={18} />
+          Kanban
+        </a>
+
+        {/* Botão Calendário + ícone */}
+        <a
+          href="/calendar"
+          className="
+            flex items-center gap-2
+            px-4 py-2 rounded-xl
+            bg-white/10 hover:bg-white/20
+            text-white text-sm font-medium
+            border border-white/10
+            transition
+          "
+        >
+          <Calendar size={18} />
+          Calendário
+        </a>
+      </div>
+
+      {/* Direita: User + Logout */}
       <div className="flex items-center gap-5">
-
-        {/* Informações do usuário */}
+        {/* User Box */}
         <div
           className="
             flex items-center gap-3
@@ -41,12 +75,10 @@ export default function Topbar({ userName, onLogout }: TopbarProps) {
           "
         >
           <User className="text-white/80" size={20} />
-          <span className="text-white font-medium text-sm">
-            {userName}
-          </span>
+          <span className="text-white font-medium text-sm">{userName}</span>
         </div>
 
-        {/* Botão de sair */}
+        {/* Botão Logout */}
         <button
           onClick={onLogout}
           className="
