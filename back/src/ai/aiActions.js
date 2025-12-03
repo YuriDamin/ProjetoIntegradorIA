@@ -243,6 +243,52 @@ if (action.type === "update-deadline") {
 
   continue;
 }
+if (action.type === "update-assignee") {
+  const cardTitle =
+    action.cardTitle ||
+    action.title ||
+    action.nome;
+
+  const assignee =
+    action.assignee ||
+    action.responsavel ||
+    action.responsável ||
+    action.usuario ||
+    action.user;
+
+  if (!assignee) {
+    results.push({
+      ok: false,
+      type: "update-assignee",
+      error: "Nenhum responsável informado.",
+      cardTitle,
+    });
+    continue;
+  }
+
+  const card = await Card.findOne({ where: { title: cardTitle } });
+
+  if (!card) {
+    results.push({
+      ok: false,
+      type: "update-assignee",
+      error: "Card não encontrado.",
+      cardTitle,
+    });
+    continue;
+  }
+
+  await card.update({ assignee });
+
+  results.push({
+    ok: true,
+    type: "update-assignee",
+    cardTitle,
+    assignee,
+  });
+
+  continue;
+}
 
     }
 

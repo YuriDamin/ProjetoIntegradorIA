@@ -36,9 +36,12 @@ O formato SEMPRE deve ser:
 {
   "actions": [
     {
-      "type": "create-card" | "move-card" | "add-checklist",
+      "type": "create-card" | "move-card" | "add-checklist" | "delete-card" | "update-deadline" | "update-assignee",
       "title": "string opcional (nome do card)",
       "priority": "baixa|média|alta",
+      "deadline": "AAAA-MM-DD",
+      "assignee": "nome da pessoa",
+      "labels": ["tag1", "tag2"],
       "columnId": "backlog|doing|done",
       "cardTitle": "string (para localizar o card)",
       "toColumn": "backlog|doing|done",
@@ -52,6 +55,9 @@ Regras:
 - Se pedir para mover um card, use "type": "move-card".
 - Se pedir checklist para um card, use "type": "add-checklist" com a lista em "items".
 - Se pedir para apagar/remover/excluir um card, use "type": "delete-card" e preencha "cardTitle" com o nome do card.
+- Se pedir para alterar prazo/data/deadline, use "type": "update-deadline" e informe "cardTitle" e "deadline".
+- Se o usuário mencionar responsável, pessoa, atribuir ou colocar alguém na tarefa,
+  SEMPRE preencha o campo "assignee" com o nome citado.
 - Use português nos textos, mas mantenha os campos do JSON exatamente como definidos acima.
 - Nunca explique nada, nunca use markdown, nunca coloque texto fora do JSON.
 
@@ -64,7 +70,10 @@ Agora gere as ações para o pedido do usuário abaixo:
 module.exports = {
   async chat(req, res) {
     try {
-      const { message, jsonMode = false } = req.body;
+      //const { message, jsonMode = false } = req.body;
+      const { message } = req.body;
+      const jsonMode = true;
+
 
       if (!message) {
         return res.status(400).json({ error: "message é obrigatório" });
@@ -80,6 +89,7 @@ module.exports = {
       });
 
       const prompt = jsonMode ? buildJsonPrompt(message) : message;
+
 
       const result = await baseModel.generateContent(prompt);
 
