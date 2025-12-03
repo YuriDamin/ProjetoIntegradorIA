@@ -21,13 +21,17 @@ export default function BoardPage() {
 
   const [userName, setUserName] = useState("Usuário");
 
+  // 🔹 Pegando usuário do localStorage
   useEffect(() => {
     const hasToken = document.cookie.includes("token=");
+
     if (!hasToken) {
       window.location.href = "/login";
+      return;
     }
 
     const stored = localStorage.getItem("user");
+
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
@@ -38,14 +42,12 @@ export default function BoardPage() {
     }
   }, []);
 
+  // 🔹 Carregar dados do board
   async function loadBoard() {
+    console.log("🔥 Carregando dados do board...");
     try {
       setLoading(true);
-
-      const res = await fetch("/api/columns", {
-        credentials: "include",
-      });
-
+      const res = await fetch("/api/columns", { credentials: "include" });
       const json = (await res.json()) as BoardData;
       setData(json);
     } catch (err) {
@@ -55,52 +57,68 @@ export default function BoardPage() {
     }
   }
 
+  // 🔹 Carregamento inicial
   useEffect(() => {
     loadBoard();
   }, []);
 
+useEffect(() => {
+  const socket = io("http://localhost:3001", {
+    withCredentials: true,
+  });
+
+  socket.on("board-updated", () => {
+    if (window.chatbotOpen) return;
+    loadBoard();
+  });
+
+  return () => {
+    socket.disconnect();
+  };
+}, []);
+
+
+
+  // 🔹 Atualização via IA — board-update event
   useEffect(() => {
-    const socket = io("http://localhost:3001", {
-      withCredentials: true,
-    });
-
-    socket.on("board-updated", () => {
-      if (window.chatbotOpen) return;
+    function handleChatbotUpdate() {
+    console.log("🔥 EVENTO RECEBIDO DO CHATBOT");
       loadBoard();
-    });
+    }
 
-    return () => {
-      socket.disconnect();
-    };
+    window.addEventListener("board-update", handleChatbotUpdate);
+    return () =>
+
+      window.removeEventListener("board-update", handleChatbotUpdate);
   }, []);
 
+  // 🔹 Abrir modal
   function onCardClick(card: Card, columnId: string) {
     setSelectedCard(card);
     setSelectedColumn(columnId as unknown as Column);
     setModalOpen(true);
   }
 
+  // 🔹 Criar card
   async function handleAddCard(columnId: string, title: string) {
-    const colId = columnId; // colId is a string
-
     const res = await fetch("/api/cards", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ title, columnId: colId }),
+      body: JSON.stringify({ title, columnId }),
     });
 
     const newCard = (await res.json()) as Card;
 
     if (!data) return;
 
-    const updated: BoardData = {
+    const updated = {
       ...data,
       columns: {
         ...data.columns,
-        [colId]: {
-          ...data.columns[colId],
-          cards: [...data.columns[colId].cards, newCard],
+        [columnId]: {
+          ...data.columns[columnId],
+          cards: [...data.columns[columnId].cards, newCard],
         },
       },
     };
@@ -108,6 +126,7 @@ export default function BoardPage() {
     setData(updated);
   }
 
+  // 🔹 Editar card
   async function handleSaveCard(updatedCard: Card) {
     await fetch(`/api/cards/${updatedCard.id}`, {
       method: "PUT",
@@ -120,7 +139,7 @@ export default function BoardPage() {
 
     const colId = String(selectedColumn);
 
-    const updated: BoardData = {
+    const updated = {
       ...data,
       columns: {
         ...data.columns,
@@ -136,6 +155,7 @@ export default function BoardPage() {
     setData(updated);
   }
 
+  // 🔹 Excluir card
   async function handleDeleteCard(cardId: string) {
     await fetch(`/api/cards/${cardId}`, {
       method: "DELETE",
@@ -143,10 +163,9 @@ export default function BoardPage() {
     });
 
     if (!data || !selectedColumn) return;
-
     const colId = String(selectedColumn);
 
-    const updated: BoardData = {
+    const updated = {
       ...data,
       columns: {
         ...data.columns,
@@ -161,21 +180,24 @@ export default function BoardPage() {
     setModalOpen(false);
   }
 
+  // 🔹 Mapear status
   function mapStatus(columnId: string): Status {
-      if (columnId === "doing") return "doing";
-      if (columnId === "done") return "done";
-      return "backlog";
+    if (columnId === "doing") return "doing";
+    if (columnId === "done") return "done";
+    return "backlog";
   }
 
+  // 🔹 Drag and Drop
   async function onDragEnd(result: DropResult) {
     const { source, destination } = result;
     if (!destination || !data) return;
 
-    const sourceColId = source.droppableId as string;
-    const destColId = destination.droppableId as string;
+    const sourceColId = source.droppableId;
+    const destColId = destination.droppableId;
 
     const movedCard = data.columns[sourceColId].cards[source.index];
 
+    // Atualizar backend
     await fetch(`/api/cards/${movedCard.id}/move`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -186,34 +208,24 @@ export default function BoardPage() {
       }),
     });
 
-    const updated: BoardData = { ...data };
-
-    updated.columns[sourceColId] = {
-      ...updated.columns[sourceColId],
-      cards: [...updated.columns[sourceColId].cards],
-    };
+    // Atualizar frontend
+    const updated: BoardData = JSON.parse(JSON.stringify(data));
 
     const [removed] = updated.columns[sourceColId].cards.splice(
       source.index,
       1
     );
 
-    const updatedCard: Card = {
+    updated.columns[destColId].cards.splice(destination.index, 0, {
       ...removed,
       columnId: destColId,
       status: mapStatus(destColId),
-    };
-
-    updated.columns[destColId] = {
-      ...updated.columns[destColId],
-      cards: [...updated.columns[destColId].cards],
-    };
-
-    updated.columns[destColId].cards.splice(destination.index, 0, updatedCard);
+    });
 
     setData(updated);
   }
 
+  // 🔹 Logout
   function handleLogout() {
     document.cookie = "token=; path=/; max-age=0";
     localStorage.clear();
@@ -228,36 +240,41 @@ export default function BoardPage() {
     );
   }
 
+  console.log("🖼️ Renderizando BoardPage, data:", data);
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0A1224] to-[#020617] p-6">
+    <>
+      {/* 🔥 ESSA PARTE RE-RENDERIZA */}
+      <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0A1224] to-[#020617] p-6">
+        <Topbar userName={userName} onLogout={handleLogout} />
 
-      <Topbar userName={userName} onLogout={handleLogout} />
+        <div className="max-w-7xl mx-auto mt-10 space-y-8">
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="flex gap-8 justify-center flex-wrap pb-8">
+              {data.columnOrder.map((colId) => (
+                <KanbanColumn
+                  key={colId}
+                  column={data.columns[colId]}
+                  cards={data.columns[colId].cards}
+                  onAddCard={handleAddCard}
+                  onCardClick={onCardClick}
+                />
+              ))}
+            </div>
+          </DragDropContext>
 
-      <div className="max-w-7xl mx-auto mt-10 space-y-8">
-        <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-8 justify-center flex-wrap pb-8">
-            {data.columnOrder.map((colId) => (
-              <KanbanColumn
-                key={colId}
-                column={data.columns[colId]}
-                cards={data.columns[colId].cards}
-                onAddCard={handleAddCard}
-                onCardClick={onCardClick}
-              />
-            ))}
-          </div>
-        </DragDropContext>
-
-        <EditCardModal
-          open={modalOpen}
-          card={selectedCard}
-          onClose={() => setModalOpen(false)}
-          onSave={handleSaveCard}
-          onDelete={handleDeleteCard}
-        />
+          <EditCardModal
+            open={modalOpen}
+            card={selectedCard}
+            onClose={() => setModalOpen(false)}
+            onSave={handleSaveCard}
+            onDelete={handleDeleteCard}
+          />
+        </div>
       </div>
 
+      {/* 🔥 ESSA PARTE NÃO RE-RENDERIZA — CHATBOT PERMANECE VIVO */}
       <ChatbotButton />
-    </div>
+    </>
   );
 }

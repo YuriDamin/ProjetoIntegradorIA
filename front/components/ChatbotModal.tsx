@@ -253,6 +253,11 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
         { from: "bot", text: botReply, cardId: createdCardId },
       ]);
 
+      setTimeout(() => {
+  console.log("🟢 Atualizando board (delay IA)...");
+  window.dispatchEvent(new Event("board-update"));
+}, 700);
+      
       if (botSound.current) {
         botSound.current.currentTime = 0;
         botSound.current.play().catch(() => {});
