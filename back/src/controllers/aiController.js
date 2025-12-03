@@ -36,11 +36,14 @@ O formato SEMPRE deve ser:
 {
   "actions": [
    {
-      "type": "create-card" | "move-card" | "add-checklist" | "delete-card" | "update-deadline" | "update-assignee",
+        "type": "create-card" | "move-card" | "add-checklist" |
+               "delete-card" | "update-deadline" | "update-assignee" |
+               "update-description" | "update-title" | "update-labels"|
+               "update-priority" | "update-status",
       "title": "nome do card (somente create-card)",
       "description": "descrição detalhada do card (somente create-card)",
       "cardTitle": "nome do card existente (obrigatório para mover, checklist, deletar, atualizar)",
-      "priority": "baixa | média | alta",
+      "priority": "baixa | media | alta | urgente",
       "deadline": "AAAA-MM-DD",
       "assignee": "responsável",
       "labels": ["tag1", "tag2"],
@@ -85,6 +88,18 @@ Regras:
   SEMPRE preencha o campo "assignee" com o nome citado.
 - Use português nos textos, mas mantenha os campos do JSON exatamente como definidos acima.
 - Nunca explique nada, nunca use markdown, nunca coloque texto fora do JSON.
++ Se o usuário pedir para alterar título, use "type": "update-title".
++ Se pedir para alterar descrição, use "type": "update-description".
++ Se pedir para alterar labels/tags, use "type": "update-labels".
++ Para essas ações, sempre preencher "cardTitle" e o campo correspondente:
++   title (novo)
++   description (nova)
++   labels (array)
+
+- update-priority → usa prioridade informada (baixa, média, alta, urgente)
+- update-status → altera o status interno do card (backlog, doing, review, done)
+- O campo "status" deve sempre usar um destes valores exatos:
+  ["backlog", "doing", "review", "done"].
 
 Agora gere as ações para o pedido do usuário abaixo:
 

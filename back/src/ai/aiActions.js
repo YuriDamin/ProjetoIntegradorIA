@@ -62,7 +62,7 @@ module.exports = {
             estimatedHours: null,
             workedHours: 0,
             assignee: null,
-            labels: [],
+            labels: Array.isArray(action.labels) ? action.labels : [],
           });
 
           results.push({
@@ -197,9 +197,7 @@ module.exports = {
 
       continue;
     }
-    // ----------------------------
-// UPDATE DEADLINE (ALTERAR PRAZO)
-// ----------------------------
+
 if (action.type === "update-deadline") {
   const cardTitle =
     action.cardTitle ||
@@ -290,6 +288,210 @@ if (action.type === "update-assignee") {
 
   continue;
 }
+if (action.type === "update-title") {
+  const cardTitle = action.cardTitle || action.nome || action.title;
+  const newTitle = action.newTitle || action.title || action.novoTitulo;
+
+  if (!newTitle) {
+    results.push({
+      ok: false,
+      type: "update-title",
+      cardTitle,
+      error: "Novo título não informado",
+    });
+    continue;
+  }
+
+  const card = await Card.findOne({ where: { title: cardTitle } });
+  if (!card) {
+    results.push({
+      ok: false,
+      type: "update-title",
+      cardTitle,
+      error: "Card não encontrado",
+    });
+    continue;
+  }
+
+  await card.update({ title: newTitle });
+
+  results.push({
+    ok: true,
+    type: "update-title",
+    oldTitle: cardTitle,
+    newTitle,
+  });
+
+  continue;
+}
+if (action.type === "update-description") {
+  const cardTitle = action.cardTitle || action.nome || action.title;
+  const description =
+    action.description ||
+    action.descricao ||
+    action.texto;
+
+  if (!description) {
+    results.push({
+      ok: false,
+      type: "update-description",
+      cardTitle,
+      error: "Nenhuma descrição informada",
+    });
+    continue;
+  }
+
+  const card = await Card.findOne({ where: { title: cardTitle } });
+  if (!card) {
+    results.push({
+      ok: false,
+      type: "update-description",
+      cardTitle,
+      error: "Card não encontrado",
+    });
+    continue;
+  }
+
+  await card.update({ description });
+
+  results.push({
+    ok: true,
+    type: "update-description",
+    cardTitle,
+    description,
+  });
+
+  continue;
+}
+if (action.type === "update-labels") {
+  const cardTitle = action.cardTitle || action.nome || action.title;
+
+  const labels =
+    action.labels ||
+    action.tags ||
+    action.etiquetas ||
+    [];
+
+  if (!Array.isArray(labels)) {
+    results.push({
+      ok: false,
+      type: "update-labels",
+      cardTitle,
+      error: "Labels devem ser uma lista (array)",
+    });
+    continue;
+  }
+
+  const card = await Card.findOne({ where: { title: cardTitle } });
+  if (!card) {
+    results.push({
+      ok: false,
+      type: "update-labels",
+      cardTitle,
+      error: "Card não encontrado",
+    });
+    continue;
+  }
+
+  await card.update({ labels });
+
+  results.push({
+    ok: true,
+    type: "update-labels",
+    cardTitle,
+    labels,
+  });
+
+  continue;
+}
+if (action.type === "update-priority") {
+  const cardTitle =
+    action.cardTitle ||
+    action.title ||
+    action.nome;
+
+  const priority =
+    action.priority ||
+    action.prioridade;
+
+  if (!priority) {
+    results.push({
+      ok: false,
+      type: "update-priority",
+      cardTitle,
+      error: "Nenhuma prioridade informada",
+    });
+    continue;
+  }
+
+  const card = await Card.findOne({ where: { title: cardTitle } });
+
+  if (!card) {
+    results.push({
+      ok: false,
+      type: "update-priority",
+      cardTitle,
+      error: "Card não encontrado",
+    });
+    continue;
+  }
+
+  await card.update({ priority });
+
+  results.push({
+    ok: true,
+    type: "update-priority",
+    cardTitle,
+    newPriority: priority,
+  });
+
+  continue;
+}
+if (action.type === "update-status") {
+  const cardTitle =
+    action.cardTitle ||
+    action.title ||
+    action.nome;
+
+  const status =
+    action.status ||
+    action.situacao ||
+    action.estado;
+
+  if (!status) {
+    results.push({
+      ok: false,
+      type: "update-status",
+      cardTitle,
+      error: "Nenhum status informado",
+    });
+    continue;
+  }
+
+  const card = await Card.findOne({ where: { title: cardTitle } });
+
+  if (!card) {
+    results.push({
+      ok: false,
+      type: "update-status",
+      cardTitle,
+      error: "Card não encontrado",
+    });
+    continue;
+  }
+
+  await card.update({ status });
+
+  results.push({
+    ok: true,
+    type: "update-status",
+    cardTitle,
+    newStatus: status,
+  });
+
+  continue;
+}
+
 
     }
 

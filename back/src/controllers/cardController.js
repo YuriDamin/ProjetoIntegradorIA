@@ -8,14 +8,17 @@ function mapStatus(columnId) {
 
 function normalizePriority(p) {
   if (!p) return "media";
+
   const val = p.toLowerCase();
 
-  if (["urgente", "alta", "media", "baixa"].includes(val)) {
-    return val;
-  }
+  if (val.includes("urg")) return "urgente";
+  if (val.includes("alt") || val.includes("high")) return "alta";
+  if (val.includes("med")) return "media";
+  if (val.includes("bai") || val.includes("low")) return "baixa";
 
-  return "media"; 
+  return "media";
 }
+
 
 function normalizeChecklist(list) {
   return list?.map((item) => ({
@@ -82,9 +85,15 @@ module.exports = {
         body.priority = normalizePriority(body.priority);
       }
 
-      if (body.status && !["backlog", "doing", "done"].includes(body.status)) {
-        body.status = mapStatus(card.columnId);
-      }
+    const allowedStatuses = ["backlog", "doing", "review", "done"];
+
+if (body.status && !allowedStatuses.includes(body.status)) {
+  return res.status(400).json({
+    error: "Status inválido",
+    permitido: allowedStatuses
+  });
+}
+
 
       await card.update(body);
 
