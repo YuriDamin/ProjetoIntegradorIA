@@ -567,6 +567,51 @@ if (action.type === "bulk-update") {
   continue;
 }
 
+if (action.type === "insight-request" && action.query === "cards_atrasados") {
+  const today = new Date().toISOString().substring(0, 10);
+
+  const all = await Card.findAll({
+    order: [["deadline", "ASC"]],
+  });
+
+  const atrasados = all.filter((c) => {
+    if (!c.deadline) return false;
+
+    const d = typeof c.deadline === "string"
+      ? c.deadline.substring(0, 10)
+      : c.deadline.toISOString().substring(0, 10);
+
+    return d < today && c.status !== "done";
+  });
+
+  results.push({
+    ok: true,
+    type: "insight-request",
+    insight: "cards_atrasados",
+    count: atrasados.length,
+    cards: atrasados.map((c) => ({
+      id: c.id,
+      title: c.title,
+      deadline: c.deadline,
+      status: c.status,
+      priority: c.priority,
+      assignee: c.assignee,
+      columnId: c.columnId,
+    })),
+  });
+
+  continue;
+}
+
+
+
+
+
+
+
+
+
+
     }
 
     return results;

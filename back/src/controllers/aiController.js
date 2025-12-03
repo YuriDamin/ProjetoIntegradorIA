@@ -39,7 +39,8 @@ O formato SEMPRE deve ser:
         "type": "create-card" | "move-card" | "add-checklist" |
                "delete-card" | "update-deadline" | "update-assignee" |
                "update-description" | "update-title" | "update-labels"|
-               "update-priority" | "update-status" | "bulk-update" | "bulk-delete" ,
+               "update-priority" | "update-status" | "bulk-update" | "bulk-delete" 
+               | "insight-request",
       "title": "nome do card (somente create-card)",
       "description": "descrição detalhada do card (somente create-card)",
       "cardTitle": "nome do card existente (obrigatório para mover, checklist, deletar, atualizar)",
@@ -123,6 +124,18 @@ Regras:
     "where": {...}
   }
 
+- Para obter cards atrasados, use:
+  {
+    "actions": [
+      {
+        "type": "insight-request",
+        "query": "cards_atrasados"
+      }
+    ]
+  }
+
+
+
 
 Agora gere as ações para o pedido do usuário abaixo:
 
@@ -170,6 +183,7 @@ module.exports = {
         }
 
         const execResult = await aiActions.executeActions(json.actions);
+        console.log("EXEC RESULT >>>", execResult);
 
         const io = req.app.get("io");
         if (io) {
