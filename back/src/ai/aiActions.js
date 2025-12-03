@@ -50,10 +50,11 @@ module.exports = {
 
           const priority = mapPriority(action.priority || action.prioridade);
           const columnId = action.columnId || mapColumn(action.column || action.localizacao);
+          const description = action.description || "";
 
           const newCard = await Card.create({
             title,
-            description: "",
+            description,
             priority,
             columnId,
             status: columnId,

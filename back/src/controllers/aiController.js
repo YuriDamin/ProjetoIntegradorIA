@@ -35,25 +35,50 @@ O formato SEMPRE deve ser:
 
 {
   "actions": [
-    {
+   {
       "type": "create-card" | "move-card" | "add-checklist" | "delete-card" | "update-deadline" | "update-assignee",
-      "title": "string opcional (nome do card)",
-      "priority": "baixa|média|alta",
+      "title": "nome do card (somente create-card)",
+      "description": "descrição detalhada do card (somente create-card)",
+      "cardTitle": "nome do card existente (obrigatório para mover, checklist, deletar, atualizar)",
+      "priority": "baixa | média | alta",
       "deadline": "AAAA-MM-DD",
-      "assignee": "nome da pessoa",
+      "assignee": "responsável",
       "labels": ["tag1", "tag2"],
-      "columnId": "backlog|doing|done",
-      "cardTitle": "string (para localizar o card)",
-      "toColumn": "backlog|doing|done",
-      "items": ["texto do item 1", "texto do item 2"]
+      "columnId": "backlog | doing | done",
+      "toColumn": "backlog | doing | done",
+      "items": ["item 1", "item 2"] 
     }
   ]
 }
 
 Regras:
 - Se o usuário pedir para criar um card, use "type": "create-card".
+- Para "create-card", sempre gerar também o campo "description".
+- A descrição deve ser um texto curto (1 a 3 frases) explicando o objetivo do card,
+  criada automaticamente com base no título.
+- Caso o usuário escreva uma descrição no pedido, utilize-a. Caso contrário, crie uma.
+- Para "create-card", sempre gerar também o campo "labels".
+- As labels devem ser criadas automaticamente com base no título do card.
+- As labels devem ser palavras curtas que descrevem o tipo da tarefa.
+- Exemplos:
+  Título: "Criar tela de login"
+  Labels: ["frontend", "ui", "login"]
+
+  Título: "Configurar autenticação JWT"
+  Labels: ["backend", "auth", "jwt"]
+
+  Título: "Criar deploy automatizado"
+  Labels: ["devops", "deploy", "ci/cd"]
+- As labels devem vir em formato JSON: ["tag1", "tag2", "tag3"]
+
 - Se pedir para mover um card, use "type": "move-card".
-- Se pedir checklist para um card, use "type": "add-checklist" com a lista em "items".
+- Se pedir checklist para um card, use "type": "add-checklist".
+- Se o usuário NÃO fornecer os itens da checklist, então GERE OS ITENS AUTOMATICAMENTE
+  com base no título do card.
+- Os itens devem descrever subtarefas lógicas, práticas e coerentes com o título.
+- Exemplo:
+  Card: "Criar sistema de login"
+  items: ["Criar tela de login", "Validar usuário", "Integrar API", "Implementar JWT"]
 - Se pedir para apagar/remover/excluir um card, use "type": "delete-card" e preencha "cardTitle" com o nome do card.
 - Se pedir para alterar prazo/data/deadline, use "type": "update-deadline" e informe "cardTitle" e "deadline".
 - Se o usuário mencionar responsável, pessoa, atribuir ou colocar alguém na tarefa,
@@ -70,7 +95,10 @@ Agora gere as ações para o pedido do usuário abaixo:
 module.exports = {
   async chat(req, res) {
     try {
-      const { message, jsonMode = false } = req.body;
+      //const { message, jsonMode = false } = req.body;
+      const { message } = req.body;
+      const jsonMode = true;
+
 
       if (!message) {
         return res.status(400).json({ error: "message é obrigatório" });
