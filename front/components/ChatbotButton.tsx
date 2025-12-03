@@ -1,17 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageSquare } from "lucide-react";
 import ChatbotModal from "./ChatbotModal";
 
 export default function ChatbotButton() {
   const [open, setOpen] = useState(false);
 
+  useEffect(() => {
+    const saved = localStorage.getItem("chat_open");
+    if (saved === "true") setOpen(true);
+  }, []);
+
+  function handleOpen() {
+    localStorage.setItem("chat_open", "true");
+    setOpen(true);
+  }
+
+  function handleClose() {
+    localStorage.setItem("chat_open", "false");
+    setOpen(false);
+  }
+
   return (
     <>
       {/* Botão flutuante */}
       <button
-        onClick={() => setOpen(true)}
+        onClick={handleOpen}
         className="
           fixed 
           bottom-6 
@@ -31,7 +46,7 @@ export default function ChatbotButton() {
       </button>
 
       {/* Modal do Chatbot */}
-      <ChatbotModal open={open} onClose={() => setOpen(false)} />
+      <ChatbotModal open={open} onClose={handleClose} />
     </>
   );
 }
