@@ -51,6 +51,7 @@ Regras:
 - Se o usuário pedir para criar um card, use "type": "create-card".
 - Se pedir para mover um card, use "type": "move-card".
 - Se pedir checklist para um card, use "type": "add-checklist" com a lista em "items".
+- Se pedir para apagar/remover/excluir um card, use "type": "delete-card" e preencha "cardTitle" com o nome do card.
 - Use português nos textos, mas mantenha os campos do JSON exatamente como definidos acima.
 - Nunca explique nada, nunca use markdown, nunca coloque texto fora do JSON.
 

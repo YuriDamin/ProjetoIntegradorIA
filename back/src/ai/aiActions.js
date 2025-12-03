@@ -167,6 +167,83 @@ module.exports = {
           error: err.message,
         });
       }
+
+     if (action.type === "delete-card") {
+      const cardTitle =
+        action.cardTitle ||
+        action.title ||
+        action.nome;
+
+      const card = await Card.findOne({ where: { title: cardTitle } });
+
+      if (!card) {
+        results.push({
+          ok: false,
+          type: "delete-card",
+          error: "Card não encontrado",
+          cardTitle,
+        });
+        continue;
+      }
+
+      await card.destroy();
+
+      results.push({
+        ok: true,
+        type: "delete-card",
+        cardTitle,
+      });
+
+      continue;
+    }
+    // ----------------------------
+// UPDATE DEADLINE (ALTERAR PRAZO)
+// ----------------------------
+if (action.type === "update-deadline") {
+  const cardTitle =
+    action.cardTitle ||
+    action.title ||
+    action.nome;
+
+  const deadline =
+    action.deadline ||
+    action.prazo ||
+    action.data;
+
+  if (!deadline) {
+    results.push({
+      ok: false,
+      type: "update-deadline",
+      error: "Nenhuma data informada",
+      cardTitle,
+    });
+    continue;
+  }
+
+  const card = await Card.findOne({ where: { title: cardTitle } });
+
+  if (!card) {
+    results.push({
+      ok: false,
+      type: "update-deadline",
+      error: "Card não encontrado",
+      cardTitle,
+    });
+    continue;
+  }
+
+  await card.update({ deadline });
+
+  results.push({
+    ok: true,
+    type: "update-deadline",
+    cardTitle,
+    deadline,
+  });
+
+  continue;
+}
+
     }
 
     return results;

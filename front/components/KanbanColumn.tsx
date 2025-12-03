@@ -39,9 +39,14 @@ export default function KanbanColumn({
       "
     >
       {/* Título da coluna */}
-      <h2 className="text-white/80 font-bold text-base tracking-wide mb-4 uppercase border-b border-white/10 pb-2">
+      <h2 className="text-white/80 font-bold text-base tracking-wide mb-3 uppercase border-b border-white/10 pb-2">
         {column.title}
       </h2>
+
+      {/* Botão de adicionar card (AGORA NO TOPO) */}
+      <div className="mb-4">
+        <AddCard onAdd={(title) => onAddCard(column.id, title)} />
+      </div>
 
       {/* Área de drop */}
       <Droppable droppableId={column.id}>
@@ -69,11 +74,6 @@ export default function KanbanColumn({
           </div>
         )}
       </Droppable>
-
-      {/* Botão de adicionar card */}
-      <div className="mt-4">
-        <AddCard onAdd={(title) => onAddCard(column.id, title)} />
-      </div>
     </div>
   );
 }
