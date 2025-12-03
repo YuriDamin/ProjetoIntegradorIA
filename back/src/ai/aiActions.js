@@ -731,7 +731,112 @@ if (action.type === "add-worked-hours") {
 
   continue;
 }
+if (action.type === "insight-request" && action.query === "burndown") {
 
+  let cards = [];
+
+  // 🔎 FILTRAR POR CARD ESPECÍFICO
+  if (action.cardTitle) {
+    const card = await Card.findOne({
+      where: { title: action.cardTitle }
+    });
+
+    if (!card) {
+      results.push({
+        ok: false,
+        type: "insight-request",
+        insight: "burndown",
+        error: `Card "${action.cardTitle}" não encontrado.`
+      });
+      continue;
+    }
+
+    cards = [card];
+  }
+
+  // 🔎 FILTRAR POR COLUNA ESPECÍFICA
+  else if (action.columnId) {
+    cards = await Card.findAll({
+      where: { columnId: action.columnId }
+    });
+  }
+
+  // 🔎 SEM FILTRO → GLOBAL
+  else {
+    cards = await Card.findAll();
+  }
+
+  // Se não existir cards filtrados
+  if (!cards || cards.length === 0) {
+    results.push({
+      ok: false,
+      type: "insight-request",
+      insight: "burndown",
+      error: "Nenhum card encontrado para o filtro solicitado."
+    });
+    continue;
+  }
+
+  // ===============================
+  // 🔥 CÁLCULO DO BURN-DOWN
+  // ===============================
+
+  let totalEstimated = 0;
+  let totalWorked = 0;
+
+  let overworked = [];
+  let noEstimate = [];
+
+  cards.forEach((c) => {
+    const est = c.estimatedHours ?? 0;
+    const worked = c.workedHours ?? 0;
+
+    totalEstimated += est;
+    totalWorked += worked;
+
+    if (est === 0) {
+      noEstimate.push({
+        id: c.id,
+        title: c.title,
+        columnId: c.columnId
+      });
+    }
+
+    if (worked > est && est > 0) {
+      overworked.push({
+        id: c.id,
+        title: c.title,
+        estimatedHours: est,
+        workedHours: worked,
+        diff: worked - est
+      });
+    }
+  });
+
+  const percentage =
+    totalEstimated === 0
+      ? 0
+      : Math.round((totalWorked / totalEstimated) * 100);
+
+  results.push({
+    ok: true,
+    type: "insight-request",
+    insight: "burndown",
+    scope: action.cardTitle
+      ? "card"
+      : action.columnId
+      ? "column"
+      : "global",
+    filter: action.cardTitle ?? action.columnId ?? null,
+    totalEstimated,
+    totalWorked,
+    percentage,
+    overworked,
+    noEstimate
+  });
+
+  continue;
+}
 
     }
 

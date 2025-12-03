@@ -188,6 +188,30 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
           summary += `<pre>${JSON.stringify(action.set, null, 2)}</pre><br>`;
         }
 
+        if (action.type === "insight-request" && action.insight === "burndown") {
+          summary += `📉 <b>Burn-down de Horas</b><br>`;
+          summary += `Estimadas: <b>${action.totalEstimated}h</b><br>`;
+          summary += `Trabalhadas: <b>${action.totalWorked}h</b><br>`;
+          summary += `Progresso: <b>${action.percentage}%</b><br><br>`;
+
+        if (action.overworked.length > 0) {
+          summary += `⚠️ <b>Cards que estouraram a estimativa</b><br>`;
+          action.overworked.forEach((c: any) => {
+          summary += `• ${c.title} — ${c.workedHours}/${c.estimatedHours}h (⟶ +${c.diff}h)<br>`;
+        });
+        summary += `<br>`;
+      }
+
+       if (action.noEstimate.length > 0) {
+          summary += `🔍 <b>Cards sem estimativa</b><br>`;
+          action.noEstimate.forEach((c: any) => {
+          summary += `• ${c.title}<br>`;
+        });
+          summary += `<br>`;
+  }
+}
+
+
         if (action.type === "insight-request") {
           if (action.insight === "cards_atrasados") {
             summary += `📊 <b>Insight: Cards atrasados</b><br>`;
@@ -199,6 +223,8 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
           }
         }
       });
+
+      
 
       return summary.trim() || null;
     } catch {

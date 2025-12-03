@@ -133,6 +133,40 @@ Regras:
       }
     ]
   }
+  
+  - Para obter o burn-down de horas:
+  {
+    "actions": [
+      {
+        "type": "insight-request",
+        "query": "burndown"
+      }
+    ]
+  }
+
+  - Para burn-down de um CARD específico, inclua "cardTitle".
+  Exemplo:
+  {
+    "actions": [
+      {
+        "type": "insight-request",
+        "query": "burndown",
+        "cardTitle": "Criar API"
+      }
+    ]
+  }
+
+- Para burn-down de uma COLUNA, inclua "columnId".
+  Exemplo:
+  {
+    "actions": [
+      {
+        "type": "insight-request",
+        "query": "burndown",
+        "columnId": "doing"
+      }
+    ]
+  }
 
 - update-estimated-hours → altera o campo estimatedHours do card.
   Campos: cardTitle, estimatedHours (número)
