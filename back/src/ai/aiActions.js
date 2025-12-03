@@ -1,3 +1,4 @@
+// back\src\ai\aiActions.js
 const { Card, Checklist, Column } = require("../models");
 
 function mapPriority(str = "") {
@@ -10,7 +11,6 @@ function mapPriority(str = "") {
 
   return "media"; 
 }
-
 
 function mapColumn(str = "") {
   const c = String(str).toLowerCase();
@@ -26,22 +26,35 @@ module.exports = {
   /**
    * actions: array no formato:
    * {
-   *   type: "create-card" | "move-card" | "add-checklist",
+   *   type: "create-card" | "move-card" | "add-checklist" | "confirm-scope",
    *   title: string,
    *   priority: string,
    *   columnId: string,
    *   cardTitle: string,
    *   toColumn: string,
-   *   items: string[]
+   *   items: string[],
+   *   proposedAction: string,
+   *   question: string
    * }
    */
-
   async executeActions(actions = []) {
     const results = [];
 
     for (const action of actions) {
       try {
-          if (action.type === "create-card") {
+        // AÇÃO: CONFIRMAR ESCOPO (apenas pergunta, não executa)
+        if (action.type === "confirm-scope") {
+          results.push({
+            ok: true,
+            type: "confirm-scope",
+            proposedAction: action.proposedAction || "Ação não especificada",
+            question: action.question || "Deseja prosseguir com esta ação?"
+          });
+          continue;
+        }
+
+        // AÇÃO: CRIAR CARD
+        if (action.type === "create-card") {
           const title =
             action.title ||
             action.name ||
@@ -76,6 +89,33 @@ module.exports = {
           continue;
         }
 
+        // No aiActions.js, adicione este case:
+        if (action.type === "delete-card") {
+          const cardTitle = action.cardTitle || action.title;
+          
+          const card = await Card.findOne({ where: { title: cardTitle } });
+          if (!card) {
+            results.push({
+              ok: false,
+              type: "delete-card",
+              cardTitle,
+              error: "Card não encontrado",
+            });
+            continue;
+          }
+          
+          await card.destroy();
+          
+          results.push({
+            ok: true,
+            type: "delete-card",
+            cardTitle,
+          });
+          
+          continue;
+        }
+
+        // AÇÃO: MOVER CARD
         if (action.type === "move-card") {
           const cardTitle =
             action.cardTitle ||
@@ -114,7 +154,7 @@ module.exports = {
           continue;
         }
 
-
+        // AÇÃO: ADICIONAR CHECKLIST
         if (action.type === "add-checklist") {
           const cardTitle =
             action.cardTitle ||
@@ -154,6 +194,7 @@ module.exports = {
           continue;
         }
 
+        // AÇÃO DESCONHECIDA
         results.push({
           ok: false,
           type: action.type,
@@ -161,6 +202,7 @@ module.exports = {
         });
 
       } catch (err) {
+        console.error(`Erro ao executar ação ${action.type}:`, err);
         results.push({
           ok: false,
           type: action.type,
