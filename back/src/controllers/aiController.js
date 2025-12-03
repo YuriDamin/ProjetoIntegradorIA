@@ -64,8 +64,8 @@ Agora gere as ações para o pedido do usuário abaixo:
 module.exports = {
   async chat(req, res) {
     try {
-      const { message, jsonMode = false } = req.body;
-
+      const { message } = req.body;
+      const jsonMode = true;
       if (!message) {
         return res.status(400).json({ error: "message é obrigatório" });
       }
