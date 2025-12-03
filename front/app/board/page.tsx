@@ -65,6 +65,7 @@ export default function BoardPage() {
     });
 
     socket.on("board-updated", () => {
+      if (window.chatbotOpen) return;
       loadBoard();
     });
 

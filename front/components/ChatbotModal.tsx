@@ -11,7 +11,7 @@ interface ChatbotModalProps {
 interface ChatMessage {
   from: "user" | "bot";
   text: string;
-  cardId?: string; 
+  cardId?: string;
 }
 
 export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
@@ -23,9 +23,14 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
   const botSound = useRef<HTMLAudioElement | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
 
+  // 🔵 Marca global se o chat está aberto
+  useEffect(() => {
+    window.chatbotOpen = open;
+  }, [open]);
+
+  // 📌 Carregar histórico
   useEffect(() => {
     const saved = localStorage.getItem("chat_history");
-
     if (saved) {
       setMessages(JSON.parse(saved));
     } else {
@@ -38,6 +43,7 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
     }
   }, []);
 
+  // 📌 Salvar histórico
   useEffect(() => {
     if (messages.length > 0) {
       localStorage.setItem("chat_history", JSON.stringify(messages));
@@ -47,23 +53,23 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
   function clearHistory() {
     localStorage.removeItem("chat_history");
     setMessages([
-      {
-        from: "bot",
-        text: "Histórico limpo! Como posso te ajudar agora?",
-      },
+      { from: "bot", text: "Histórico limpo! Como posso te ajudar agora?" },
     ]);
   }
 
+  // 🔊 Som do bot
   useEffect(() => {
     botSound.current = new Audio(
       "data:audio/mp3;base64,//uQxAAAAAAAAAAAA..."
     );
   }, []);
 
+  // ⬇ Scroll automático
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
 
+  // ❌ Fecha ao clicar fora
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
@@ -76,6 +82,79 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
 
   if (!open) return null;
 
+  // 🌟 Detecta JSON e converte automaticamente
+  function formatAiActionsFromRaw(rawText: string) {
+    try {
+      const json = JSON.parse(rawText);
+      const actions = json.actions ?? [];
+      let summary = "";
+
+      actions.forEach((action: any) => {
+        if (!action.ok) return;
+
+        if (action.type === "create-card") {
+          summary += `🟢 <b>Card criado com sucesso!</b><br>`;
+          summary += `• Título: <i>${action.title}</i><br>`;
+          summary += `• Prioridade: <i>${action.priority}</i><br>`;
+          summary += `• Coluna: <i>${action.columnId}</i><br><br>`;
+        }
+
+        if (action.type === "move-card") {
+          summary += `🔀 <b>Card movido com sucesso!</b><br>`;
+          summary += `• Card: <i>${action.cardTitle}</i><br>`;
+          summary += `• Nova coluna: <i>${action.toColumn}</i><br><br>`;
+        }
+
+        if (action.type === "add-checklist") {
+          summary += `📋 <b>Checklist adicionada!</b><br>`;
+          summary += `• Card: <i>${action.cardTitle}</i><br>`;
+          summary += `• Itens: <i>${action.itemsCount}</i><br><br>`;
+        }
+      });
+
+      return summary.trim() || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // 📝 Formatação segura e com JSON autodetector
+  function formatMarkdown(text: any) {
+    if (text === null || text === undefined) return "";
+
+    // 🌟 Se for JSON bruto contendo ações → converte
+    if (
+      typeof text === "string" &&
+      text.trim().startsWith("{") &&
+      text.includes('"actions"')
+    ) {
+      const formatted = formatAiActionsFromRaw(text);
+      if (formatted) return formatted;
+    }
+
+    // 🔒 Proteção: converte qualquer coisa em string
+    if (typeof text !== "string") {
+      try {
+        return JSON.stringify(text, null, 2);
+      } catch {
+        return String(text);
+      }
+    }
+
+    // Markdown básico
+    return text
+      .replace(
+        /```json([\s\S]*?)```/g,
+        "<pre class='bg-black/40 p-3 rounded border border-gray-700 text-[11px]'>$1</pre>"
+      )
+      .replace(
+        /```([\s\S]*?)```/g,
+        "<pre class='bg-black/40 p-3 rounded border border-gray-700 text-[11px]'>$1</pre>"
+      )
+      .replace(/\n/g, "<br>");
+  }
+
+  // ✉️ ENVIAR MENSAGEM
   const handleSend = async () => {
     if (!input.trim() || typing) return;
 
@@ -104,49 +183,41 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
       let botReply = "";
       let createdCardId: string | undefined = undefined;
 
+      // 🎯 JSON MODE — exibe resumo
       if (isJsonMode) {
-        if (data.reply && data.reply.actions) {
-          const actions = data.reply.actions;
-          let summary = "";
+        const actions = data.reply?.actions ?? [];
+        let summary = "";
 
-          actions.forEach((action: { ok: any; type: string; title: any; priority: any; columnId: any; id: string | undefined; cardTitle: any; toColumn: any; itemsCount: any; error: any; }) => {
-            if (action.ok) {
-              if (action.type === "create-card") {
-                summary += `🟢 <b>Card criado com sucesso!</b><br>`;
-                summary += `• Título: <i>${action.title}</i><br>`;
-                summary += `• Prioridade: <i>${action.priority}</i><br>`;
-                summary += `• Coluna: <i>${action.columnId}</i><br><br>`;
+        actions.forEach((action: any) => {
+          if (!action.ok) return;
 
-                createdCardId = action.id; 
-              }
+          if (action.type === "create-card") {
+            summary += `🟢 <b>Card criado com sucesso!</b><br>`;
+            summary += `• Título: <i>${action.title}</i><br>`;
+            summary += `• Prioridade: <i>${action.priority}</i><br>`;
+            summary += `• Coluna: <i>${action.columnId}</i><br><br>`;
+            createdCardId = action.id;
+          }
+        });
 
-              if (action.type === "move-card") {
-                summary += `🔀 <b>Card movido com sucesso!</b><br>`;
-                summary += `• Card: <i>${action.cardTitle}</i><br>`;
-                summary += `• Nova coluna: <i>${action.toColumn}</i><br><br>`;
-              }
+        botReply = summary.trim() || "⚠️ Não consegui interpretar a ação.";
 
-              if (action.type === "add-checklist") {
-                summary += `📋 <b>Checklist adicionada!</b><br>`;
-                summary += `• Card: <i>${action.cardTitle}</i><br>`;
-                summary += `• Itens: <i>${action.itemsCount}</i><br><br>`;
-              }
-            } else {
-              summary += `⚠️ <b>Ação falhou:</b> ${action.error}<br><br>`;
-            }
-          });
-
-          botReply = summary.trim() || "Ação executada.";
-        } else {
-          botReply =
-            "⚠️ A IA retornou um JSON inválido.<br><br><pre>" +
-            (data.raw || "") +
-            "</pre>";
-        }
       } else {
-        botReply = data.reply || "Desculpe, não consegui responder agora.";
+        // 📌 Modo normal → resposta natural da IA
+if (typeof data.reply === "object") {
+  const formatted = formatAiActionsFromRaw(JSON.stringify(data.reply));
+  botReply = formatted || "⚠️ A IA enviou uma estrutura desconhecida.";
+} else {
+if (typeof data.reply === "object") {
+  const formatted = formatAiActionsFromRaw(JSON.stringify(data.reply));
+  botReply = formatted || "⚠️ A IA enviou uma estrutura desconhecida.";
+} else {
+  botReply = data.reply || "Desculpe, não consegui responder agora.";
+}
+}
       }
 
+      // Adiciona a resposta
       setMessages((prev) => [
         ...prev,
         { from: "bot", text: botReply, cardId: createdCardId },
@@ -156,6 +227,7 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
         botSound.current.currentTime = 0;
         botSound.current.play().catch(() => {});
       }
+
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -166,10 +238,9 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
     setTyping(false);
   };
 
+  // ✨ Destacar card no board
   function highlightCard(cardId: string) {
-    window.dispatchEvent(
-      new CustomEvent("highlight-card", { detail: cardId })
-    );
+    window.dispatchEvent(new CustomEvent("highlight-card", { detail: cardId }));
   }
 
   return (
@@ -186,7 +257,7 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
           overflow-hidden
         "
       >
-        {/* CABEÇALHO */}
+        {/* HEADER */}
         <div className="flex items-center justify-between px-4 py-3 bg-[#161b22] border-b border-gray-700">
           <span className="text-white font-medium">Assistente IA</span>
 
@@ -229,13 +300,12 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
                   }}
                 />
 
-                {/* BOTÃO “VER CARD” */}
                 {msg.cardId && (
                   <button
                     onClick={() => highlightCard(msg.cardId!)}
                     className="mt-2 text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded"
                   >
-                    Ver card no board →
+                    Ver card →
                   </button>
                 )}
               </div>
@@ -272,17 +342,4 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
       </div>
     </div>
   );
-}
-
-function formatMarkdown(text: string) {
-  return text
-    .replace(
-      /```json([\s\S]*?)```/g,
-      "<pre class='bg-black/40 p-3 rounded border border-gray-700 text-[11px]'>$1</pre>"
-    )
-    .replace(
-      /```([\s\S]*?)```/g,
-      "<pre class='bg-black/40 p-3 rounded border border-gray-700 text-[11px]'>$1</pre>"
-    )
-    .replace(/\n/g, "<br>");
 }
