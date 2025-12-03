@@ -492,6 +492,80 @@ if (action.type === "update-status") {
   continue;
 }
 
+if (action.type === "bulk-delete") {
+  const where = action.where || {};
+
+  // Convert filtros especiais
+  const query = {};
+
+  if (where.priority) query.priority = mapPriority(where.priority);
+  if (where.assignee) query.assignee = where.assignee;
+  if (where.status) query.status = where.status;
+  if (where.columnId) query.columnId = where.columnId;
+
+  // Datas especiais
+  if (where.deadlineBefore) {
+    query.deadline = { ["$lt"]: where.deadlineBefore };
+  }
+  if (where.deadlineAfter) {
+    query.deadline = { ["$gt"]: where.deadlineAfter };
+  }
+
+  const cards = await Card.findAll({ where: query });
+
+  for (const c of cards) {
+    await Checklist.destroy({ where: { cardId: c.id } });
+    await c.destroy();
+  }
+
+  results.push({
+    ok: true,
+    type: "bulk-delete",
+    deletedCount: cards.length,
+    where,
+  });
+
+  continue;
+}
+if (action.type === "bulk-update") {
+  const where = action.where || {};
+  const set = action.set || {};
+
+  // Construir filtros
+  const query = {};
+
+  if (where.priority) query.priority = mapPriority(where.priority);
+  if (where.assignee) query.assignee = where.assignee;
+  if (where.status) query.status = where.status;
+  if (where.columnId) query.columnId = where.columnId;
+
+  if (where.deadlineBefore) {
+    query.deadline = { ["$lt"]: where.deadlineBefore };
+  }
+  if (where.deadlineAfter) {
+    query.deadline = { ["$gt"]: where.deadlineAfter };
+  }
+
+  // Ajustar valores "set"
+  if (set.priority) set.priority = mapPriority(set.priority);
+  if (set.status) set.status = set.status.toLowerCase();
+
+  const cards = await Card.findAll({ where: query });
+
+  for (const card of cards) {
+    await card.update(set);
+  }
+
+  results.push({
+    ok: true,
+    type: "bulk-update",
+    updatedCount: cards.length,
+    where,
+    set,
+  });
+
+  continue;
+}
 
     }
 

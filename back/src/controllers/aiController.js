@@ -39,7 +39,7 @@ O formato SEMPRE deve ser:
         "type": "create-card" | "move-card" | "add-checklist" |
                "delete-card" | "update-deadline" | "update-assignee" |
                "update-description" | "update-title" | "update-labels"|
-               "update-priority" | "update-status",
+               "update-priority" | "update-status" | "bulk-update" | "bulk-delete" ,
       "title": "nome do card (somente create-card)",
       "description": "descrição detalhada do card (somente create-card)",
       "cardTitle": "nome do card existente (obrigatório para mover, checklist, deletar, atualizar)",
@@ -100,6 +100,29 @@ Regras:
 - update-status → altera o status interno do card (backlog, doing, review, done)
 - O campo "status" deve sempre usar um destes valores exatos:
   ["backlog", "doing", "review", "done"].
+
+- Para operações em massa, use "type": "bulk-update" ou "bulk-delete".
+- Sempre incluir um critério de filtro no campo "where".
+- Exemplos válidos de "where":
+  { "priority": "urgente" }
+  { "assignee": "João" }
+  { "status": "doing" }
+  { "columnId": "backlog" }
+  { "deadlineBefore": "2025-01-10" }
+  { "deadlineAfter": "2025-02-01" }
+  { "labelContains": "frontend" }
+- Para atualizar vários cards:
+  {
+    "type": "bulk-update",
+    "where": {...},
+    "set": {...}
+  }
+- Para deletar vários cards:
+  {
+    "type": "bulk-delete",
+    "where": {...}
+  }
+
 
 Agora gere as ações para o pedido do usuário abaixo:
 
