@@ -495,7 +495,6 @@ if (action.type === "update-status") {
 if (action.type === "bulk-delete") {
   const where = action.where || {};
 
-  // Convert filtros especiais
   const query = {};
 
   if (where.priority) query.priority = mapPriority(where.priority);
@@ -503,7 +502,6 @@ if (action.type === "bulk-delete") {
   if (where.status) query.status = where.status;
   if (where.columnId) query.columnId = where.columnId;
 
-  // Datas especiais
   if (where.deadlineBefore) {
     query.deadline = { ["$lt"]: where.deadlineBefore };
   }
@@ -531,7 +529,6 @@ if (action.type === "bulk-update") {
   const where = action.where || {};
   const set = action.set || {};
 
-  // Construir filtros
   const query = {};
 
   if (where.priority) query.priority = mapPriority(where.priority);
@@ -546,7 +543,6 @@ if (action.type === "bulk-update") {
     query.deadline = { ["$gt"]: where.deadlineAfter };
   }
 
-  // Ajustar valores "set"
   if (set.priority) set.priority = mapPriority(set.priority);
   if (set.status) set.status = set.status.toLowerCase();
 
@@ -602,14 +598,139 @@ if (action.type === "insight-request" && action.query === "cards_atrasados") {
 
   continue;
 }
+if (action.type === "update-estimated-hours") {
+  const cardTitle =
+    action.cardTitle ||
+    action.title ||
+    action.nome;
 
+  const hours =
+    action.estimatedHours ||
+    action.horas ||
+    action.tempo;
 
+  if (hours === undefined || hours === null || isNaN(hours)) {
+    results.push({
+      ok: false,
+      type: "update-estimated-hours",
+      cardTitle,
+      error: "Nenhuma quantidade válida de horas foi informada.",
+    });
+    continue;
+  }
 
+  const card = await Card.findOne({ where: { title: cardTitle } });
+  if (!card) {
+    results.push({
+      ok: false,
+      type: "update-estimated-hours",
+      cardTitle,
+      error: "Card não encontrado.",
+    });
+    continue;
+  }
 
+  await card.update({ estimatedHours: Number(hours) });
 
+  results.push({
+    ok: true,
+    type: "update-estimated-hours",
+    cardTitle,
+    estimatedHours: Number(hours),
+  });
 
+  continue;
+}
+if (action.type === "update-worked-hours") {
+  const cardTitle =
+    action.cardTitle ||
+    action.title ||
+    action.nome;
 
+  const hours =
+    action.workedHours ||
+    action.horas ||
+    action.tempo;
 
+  if (hours === undefined || hours === null || isNaN(hours)) {
+    results.push({
+      ok: false,
+      type: "update-worked-hours",
+      cardTitle,
+      error: "Nenhuma quantidade válida de horas trabalhadas foi informada.",
+    });
+    continue;
+  }
+
+  const card = await Card.findOne({ where: { title: cardTitle } });
+  if (!card) {
+    results.push({
+      ok: false,
+      type: "update-worked-hours",
+      cardTitle,
+      error: "Card não encontrado.",
+    });
+    continue;
+  }
+
+  await card.update({ workedHours: Number(hours) });
+
+  results.push({
+    ok: true,
+    type: "update-worked-hours",
+    cardTitle,
+    workedHours: Number(hours),
+  });
+
+  continue;
+}
+
+if (action.type === "add-worked-hours") {
+  const cardTitle =
+    action.cardTitle ||
+    action.title ||
+    action.nome;
+
+  const hours =
+    action.hours ||
+    action.horas ||
+    action.tempo;
+
+  if (hours === undefined || hours === null || isNaN(hours)) {
+    results.push({
+      ok: false,
+      type: "add-worked-hours",
+      cardTitle,
+      error: "Quantidade inválida para somar.",
+    });
+    continue;
+  }
+
+  const card = await Card.findOne({ where: { title: cardTitle } });
+  if (!card) {
+    results.push({
+      ok: false,
+      type: "add-worked-hours",
+      cardTitle,
+      error: "Card não encontrado.",
+    });
+    continue;
+  }
+
+  const newWorked = (card.workedHours || 0) + Number(hours);
+
+  await card.update({ workedHours: newWorked });
+
+  results.push({
+    ok: true,
+    type: "add-worked-hours",
+    cardTitle,
+    added: Number(hours),
+    workedHours: newWorked,
+  });
+
+  continue;
+}
 
 
     }

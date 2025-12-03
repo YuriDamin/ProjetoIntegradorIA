@@ -157,6 +157,26 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
           summary += `• Status: <i>${action.newStatus}</i><br><br>`;
         }
 
+        if (action.type === "update-estimated-hours") {
+          summary += `⏱️ <b>Estimativa atualizada!</b><br>`;
+          summary += `• Card: <i>${action.cardTitle}</i><br>`;
+          summary += `• Estimativa: <i>${action.estimatedHours}h</i><br><br>`;
+        }
+
+        if (action.type === "update-worked-hours") {
+          summary += `🛠️ <b>Horas trabalhadas definidas!</b><br>`;
+          summary += `• Card: <i>${action.cardTitle}</i><br>`;
+          summary += `• Trabalhadas: <i>${action.workedHours}h</i><br><br>`;
+        }
+
+        if (action.type === "add-worked-hours") {
+          summary += `➕🛠️ <b>Horas adicionadas!</b><br>`;
+          summary += `• Card: <i>${action.cardTitle}</i><br>`;
+          summary += `• Adicionado: <i>${action.added}h</i><br>`;
+          summary += `• Total agora: <i>${action.workedHours}h</i><br><br>`;
+        }
+
+
         if (action.type === "bulk-delete") {
           summary += `🗑️ <b>${action.deletedCount} cards removidos!</b><br>`;
           summary += `<pre>${JSON.stringify(action.where, null, 2)}</pre><br>`;

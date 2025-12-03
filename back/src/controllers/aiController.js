@@ -5,7 +5,6 @@ require("dotenv").config();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const aiActions = require("../ai/aiActions");
 
-// extrai JSON do resultado do Gemini
 function extractJSON(result) {
   try {
     const text =
@@ -39,6 +38,7 @@ O formato SEMPRE deve ser:
         "type": "create-card" | "move-card" | "add-checklist" |
                "delete-card" | "update-deadline" | "update-assignee" |
                "update-description" | "update-title" | "update-labels"|
+               "update-estimated-hours" | "update-worked-hours" | "add-worked-hours" |
                "update-priority" | "update-status" | "bulk-update" | "bulk-delete" 
                | "insight-request",
       "title": "nome do card (somente create-card)",
@@ -134,6 +134,14 @@ Regras:
     ]
   }
 
+- update-estimated-hours → altera o campo estimatedHours do card.
+  Campos: cardTitle, estimatedHours (número)
+
+- update-worked-hours → define workedHours como um valor específico.
+  Campos: cardTitle, workedHours (número)
+
+- add-worked-hours → soma horas ao workedHours existente.
+  Campos: cardTitle, hours (número)
 
 
 
