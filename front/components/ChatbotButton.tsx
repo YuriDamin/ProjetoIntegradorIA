@@ -7,19 +7,16 @@ import ChatbotModal from "./ChatbotModal";
 export default function ChatbotButton() {
   const [open, setOpen] = useState(false);
 
-  // Carrega estado salvo
   useEffect(() => {
     const saved = localStorage.getItem("chat_open");
     if (saved === "true") setOpen(true);
   }, []);
 
-  // Abre e salva no localStorage
   function handleOpen() {
     localStorage.setItem("chat_open", "true");
     setOpen(true);
   }
 
-  // Fecha e salva no localStorage
   function handleClose() {
     localStorage.setItem("chat_open", "false");
     setOpen(false);

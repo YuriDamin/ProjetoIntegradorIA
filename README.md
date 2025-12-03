@@ -5,13 +5,22 @@ Um sistema moderno de Kanban desenvolvido com Next.js, Node.js, Express, Postgre
 Este projeto inclui:
 
 ✔ Login / Registro com autenticação JWT
+
 ✔ Board Kanban dinâmico
+
 ✔ Criação, edição e exclusão de cartões
+
 ✔ Checklist com progresso automático
+
 ✔ Interface moderna com glassmorphism
+
 ✔ Ícone e identidade visual próprias
+
 ✔ Backend em Node.js estruturado em controllers / models
+
 ✔ Frontend com React + TailwindCSS
+
+
 ✔ Total integração entre front e back
 
 🚀 Tecnologias Utilizadas
