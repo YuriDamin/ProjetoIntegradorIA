@@ -887,6 +887,15 @@ module.exports = {
         }
 
         // Se chegou aqui, nenhuma ação foi correspondida
+        if (action.type === "chat-response") {
+          results.push({
+            ok: true,
+            type: "chat-response",
+            message: action.message,
+          });
+          continue;
+        }
+
         results.push({
           ok: false,
           type: action.type,

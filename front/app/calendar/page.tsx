@@ -344,10 +344,10 @@ export default function CalendarPage() {
                   onChange={(e) => setFilterColumn(e.target.value)}
                   className="bg-white/10 border border-white/20 text-white px-3 py-1 rounded-lg text-sm"
                 >
-                  <option value="">Todas</option>
-                  <option value="backlog">Backlog</option>
-                  <option value="doing">Em andamento</option>
-                  <option value="done">Concluído</option>
+                  <option className="text-black" value="">Todas</option>
+                  <option className="text-black" value="backlog">Backlog</option>
+                  <option className="text-black" value="doing">Em andamento</option>
+                  <option className="text-black" value="done">Concluído</option>
                 </select>
               </div>
 
@@ -359,11 +359,11 @@ export default function CalendarPage() {
                   onChange={(e) => setFilterStatus(e.target.value)}
                   className="bg-white/10 border border-white/20 text-white px-3 py-1 rounded-lg text-sm"
                 >
-                  <option value="">Todos</option>
-                  <option value="backlog">Backlog</option>
-                  <option value="doing">Em andamento</option>
-                  <option value="review">Em revisão</option>
-                  <option value="done">Finalizado</option>
+                  <option className="text-black" value="">Todos</option>
+                  <option className="text-black" value="backlog">Backlog</option>
+                  <option className="text-black" value="doing">Em andamento</option>
+                  <option className="text-black" value="review">Em revisão</option>
+                  <option className="text-black" value="done">Finalizado</option>
                 </select>
               </div>
 
@@ -375,9 +375,9 @@ export default function CalendarPage() {
                   onChange={(e) => setFilterAssignee(e.target.value)}
                   className="bg-white/10 border border-white/20 text-white px-3 py-1 rounded-lg text-sm"
                 >
-                  <option value="">Todos</option>
+                  <option className="text-black" value="">Todos</option>
                   {uniqueAssignees.map((resp) => (
-                    <option key={resp} value={resp}>
+                    <option className="text-black" key={resp} value={resp}>
                       {resp}
                     </option>
                   ))}
@@ -411,7 +411,7 @@ export default function CalendarPage() {
                   const isToday = key === todayKey;
 
                   const baseClasses =
-                    "min-h-[120px] rounded-xl p-2 border flex flex-col bg-white/5 transition-all cursor-pointer";
+                    "min-h-[85px] rounded-xl p-1 border flex flex-col bg-white/5 transition-all cursor-pointer";
 
                   const borderColor = isToday
                     ? "border-yellow-400"

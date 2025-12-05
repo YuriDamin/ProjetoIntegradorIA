@@ -1,5 +1,6 @@
 // controllers/aiController.js
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { Card } = require("../models");
 require("dotenv").config();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -24,9 +25,11 @@ function extractJSON(result) {
   }
 }
 
-function buildJsonPrompt(userMessage) {
+function buildJsonPrompt(userMessage, today, activeCards) {
   return `
 Você é um agente especializado em automatizar um quadro Kanban.
+Hoje é: ${today}
+Cartões existentes no quadro: [${activeCards}]
 
 Sempre responda APENAS um JSON válido, SEM texto extra e SEM markdown.
 
@@ -40,7 +43,7 @@ O formato SEMPRE deve ser:
                "update-description" | "update-title" | "update-labels"|
                "update-estimated-hours" | "update-worked-hours" | "add-worked-hours" |
                "update-priority" | "update-status" | "bulk-update" | "bulk-delete" 
-               | "insight-request",
+               | "insight-request" | "chat-response",
       "title": "nome do card (somente create-card)",
       "description": "descrição detalhada do card (somente create-card)",
       "cardTitle": "nome do card existente (obrigatório para mover, checklist, deletar, atualizar)",
@@ -50,154 +53,50 @@ O formato SEMPRE deve ser:
       "labels": ["tag1", "tag2"],
       "columnId": "backlog | doing | done",
       "toColumn": "backlog | doing | done",
-      "items": ["item 1", "item 2"] 
+      "items": ["item 1", "item 2"],
+      "message": "Texto do conselho ou resposta (somente chat-response)"
     }
   ]
 }
 
 Regras:
 - Se o usuário pedir para criar um card, use "type": "create-card".
-- Para "create-card", sempre gerar também o campo "description".
-- A descrição deve ser um texto curto (1 a 3 frases) explicando o objetivo do card,
-  criada automaticamente com base no título.
-- Caso o usuário escreva uma descrição no pedido, utilize-a. Caso contrário, crie uma.
-- Para "create-card", sempre gerar também o campo "labels".
-- As labels devem ser criadas automaticamente com base no título do card.
-- As labels devem ser palavras curtas que descrevem o tipo da tarefa.
-- Exemplos:
-  Título: "Criar tela de login"
-  Labels: ["frontend", "ui", "login"]
+  - IMPORTANTE: Antes de criar, VERIFIQUE a lista de "Cartões existentes".
+  - Se já existir um cartão com nome MUITO similar e o usuário estiver adicionando detalhes ou checklist,
+    use "add-checklist" ou "update-description" nesse cartão existente em vez de criar um novo.
+  - Exemplo: Se existe "Ir ao mercado" e usuário diz "comprar suco no mercado", gere "add-checklist" para "Ir ao mercado".
 
-  Título: "Configurar autenticação JWT"
-  Labels: ["backend", "auth", "jwt"]
+- Datas relativas:
+  - Se o usuário disser "amanhã", calcule a data com base em ${today}.
+  - Se disser "próxima sexta", calcule a data correta.
+  - Formato de data sempre: AAAA-MM-DD.
 
-  Título: "Criar deploy automatizado"
-  Labels: ["devops", "deploy", "ci/cd"]
-- As labels devem vir em formato JSON: ["tag1", "tag2", "tag3"]
+- Para "create-card", sempre gerar também o campo "description" e "labels" (baseado no título).
+- Labels devem ser JSON array de strings: ["tag1", "tag2"].
 
-- Se pedir para mover um card, use "type": "move-card".
 - Se pedir checklist para um card, use "type": "add-checklist".
-- Se o usuário NÃO fornecer os itens da checklist, então GERE OS ITENS AUTOMATICAMENTE
-  com base no título do card.
-- Os itens devem descrever subtarefas lógicas, práticas e coerentes com o título.
-- Exemplo:
-  Card: "Criar sistema de login"
-  items: ["Criar tela de login", "Validar usuário", "Integrar API", "Implementar JWT"]
-- Se pedir para apagar/remover/excluir um card, use "type": "delete-card" e preencha "cardTitle" com o nome do card.
-- Se pedir para alterar prazo/data/deadline, use "type": "update-deadline" e informe "cardTitle" e "deadline".
-- Se o usuário mencionar responsável, pessoa, atribuir ou colocar alguém na tarefa,
-  SEMPRE preencha o campo "assignee" com o nome citado.
-- Use português nos textos, mas mantenha os campos do JSON exatamente como definidos acima.
-- Nunca explique nada, nunca use markdown, nunca coloque texto fora do JSON.
-+ Se o usuário pedir para alterar título, use "type": "update-title".
-+ Se pedir para alterar descrição, use "type": "update-description".
-+ Se pedir para alterar labels/tags, use "type": "update-labels".
-+ Para essas ações, sempre preencher "cardTitle" e o campo correspondente:
-+   title (novo)
-+   description (nova)
-+   labels (array)
+- Se o usuário NÃO fornecer os itens da checklist, gere itens lógicos automaticamente. (Ex: "Fazer bolo" -> ["Comprar farinha", "Ovos", "Assar"]).
 
-- update-priority → usa prioridade informada (baixa, média, alta, urgente)
-- update-status → altera o status interno do card (backlog, doing, review, done)
-- O campo "status" deve sempre usar um destes valores exatos:
-  ["backlog", "doing", "review", "done"].
+- create-card:
+  - Gere DUAS ações se for criar E adicionar itens:
+    1. "create-card"
+    2. "add-checklist" (use o MESMO título).
 
-- Para operações em massa, use "type": "bulk-update" ou "bulk-delete".
-- Sempre incluir um critério de filtro no campo "where".
-- Exemplos válidos de "where":
-  { "priority": "urgente" }
-  { "assignee": "João" }
-  { "status": "doing" }
-  { "columnId": "backlog" }
-  { "deadlineBefore": "2025-01-10" }
-  { "deadlineAfter": "2025-02-01" }
-  { "labelContains": "frontend" }
-- Para atualizar vários cards:
-  {
-    "type": "bulk-update",
-    "where": {...},
-    "set": {...}
-  }
-- Para deletar vários cards:
-  {
-    "type": "bulk-delete",
-    "where": {...}
-  }
+- Se pedir para apagar/remover/excluir, use "type": "delete-card".
+- Se pedir para alterar prazo/data/deadline, use "type": "update-deadline".
+- Se mencionar responsável/atribuir, use "assignee".
 
-- Para obter cards atrasados, use:
-  {
-    "actions": [
-      {
-        "type": "insight-request",
-        "query": "cards_atrasados"
-      }
-    ]
-  }
-  
-  - Para burn-down de horas:
-  {
-    "actions": [
-      {
-        "type": "insight-request",
-        "query": "burndown"
-      }
-    ]
-  }
+- "insight-request":
+  - "cards_atrasados" -> para atrasados.
+  - "burndown" -> para burndown.
+  - "cards_hoje" -> para tarefas de hoje.
 
-  - IMPORTANTE: Se o usuário disser que "já fez", "já comprou", "terminou", "finalizou" algo,
-    entenda isso como uma INTENÇÃO de mover para DONE.
-    Gere uma ação "update-status" com status "done".
+- "chat-response":
+  - Use isso se o usuário pedir um conselho, resumo, ajuda de organização, ou conversar.
+  - O campo "message" deve conter a resposta útil e amigável.
+  - Exemplo: Usuário "Me ajude a organizar meu dia". Ação: type: "chat-response", message: "Claro! Foque nas tarefas urgentes..."
 
-  - IMPORTANTE: Se o usuário pedir para criar um card com vário itens (ex: "ir ao mercado comprar banana, arroz, feijão"),
-    Gere DUAS ações:
-    1. "create-card" (com o título principal, ex: "Ir ao mercado")
-    2. "add-checklist" (com os itens extraídos, ex: ["banana", "arroz", "feijão"])
-    Use o MESMO título em "title" (da criação) e "cardTitle" (da checklist).
-
-  - Para obter quantos cards há para HOJE (deadline = hoje), use:
-  {
-    "actions": [
-      {
-        "type": "insight-request",
-        "query": "cards_hoje"
-      }
-    ]
-  }
-
-  - Para burn-down de um CARD específico, inclua "cardTitle".
-  Exemplo:
-  {
-    "actions": [
-      {
-        "type": "insight-request",
-        "query": "burndown",
-        "cardTitle": "Criar API"
-      }
-    ]
-  }
-
-- Para burn-down de uma COLUNA, inclua "columnId".
-  Exemplo:
-  {
-    "actions": [
-      {
-        "type": "insight-request",
-        "query": "burndown",
-        "columnId": "doing"
-      }
-    ]
-  }
-
-- update-estimated-hours → altera o campo estimatedHours do card.
-  Campos: cardTitle, estimatedHours (número)
-
-- update-worked-hours → define workedHours como um valor específico.
-  Campos: cardTitle, workedHours (número)
-
-- add-worked-hours → soma horas ao workedHours existente.
-  Campos: cardTitle, hours (número)
-
-
+- IMPORTANTE: Se o usuário disser que "já fez", "terminou", use "update-status" -> "done".
 
 Agora gere as ações para o pedido do usuário abaixo:
 
@@ -208,7 +107,6 @@ Agora gere as ações para o pedido do usuário abaixo:
 module.exports = {
   async chat(req, res) {
     try {
-      //const { message, jsonMode = false } = req.body;
       const { message } = req.body;
       const jsonMode = true;
 
@@ -216,6 +114,15 @@ module.exports = {
       if (!message) {
         return res.status(400).json({ error: "message é obrigatório" });
       }
+
+      // 1. Obter contexto (Data e Cards)
+      const today = new Date().toISOString().split("T")[0];
+      const allCards = await Card.findAll({
+        attributes: ["title"],
+        // Podemos filtrar por status se quiser ignorar done, mas para evitar duplicação geral, melhor pegar tudo ou exceto done.
+        // Vamos pegar tudo para garantir.
+      });
+      const cardTitles = allCards.map((c) => c.title).join(", ");
 
       const baseModel = genAI.getGenerativeModel({
         model: "gemini-2.5-flash",
@@ -226,7 +133,9 @@ module.exports = {
         }),
       });
 
-      const prompt = jsonMode ? buildJsonPrompt(message) : message;
+      const prompt = jsonMode
+        ? buildJsonPrompt(message, today, cardTitles)
+        : message;
 
 
       const result = await baseModel.generateContent(prompt);

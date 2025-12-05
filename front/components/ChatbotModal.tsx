@@ -22,8 +22,9 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const botSound = useRef<HTMLAudioElement | null>(null);
   const modalRef = useRef<HTMLDivElement | null>(null);
-//
+
   useEffect(() => {
+    // @ts-ignore
     window.chatbotOpen = open;
   }, [open]);
 
@@ -176,7 +177,6 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
           summary += `• Total agora: <i>${action.workedHours}h</i><br><br>`;
         }
 
-
         if (action.type === "bulk-delete") {
           summary += `🗑️ <b>${action.deletedCount} cards removidos!</b><br>`;
           summary += `<pre>${JSON.stringify(action.where, null, 2)}</pre><br>`;
@@ -188,43 +188,40 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
           summary += `<pre>${JSON.stringify(action.set, null, 2)}</pre><br>`;
         }
 
+        if (action.type === "chat-response") {
+          summary += `🤖 <b>Resposta da IA:</b><br>`;
+          summary += `<i>${action.message}</i><br><br>`;
+        }
+
         if (action.type === "insight-request" && action.insight === "burndown") {
           summary += `📉 <b>Burn-down de Horas</b><br>`;
           summary += `Estimadas: <b>${action.totalEstimated}h</b><br>`;
           summary += `Trabalhadas: <b>${action.totalWorked}h</b><br>`;
           summary += `Progresso: <b>${action.percentage}%</b><br><br>`;
 
-        if (action.overworked.length > 0) {
-          summary += `⚠️ <b>Cards que estouraram a estimativa</b><br>`;
-          action.overworked.forEach((c: any) => {
-          summary += `• ${c.title} — ${c.workedHours}/${c.estimatedHours}h (⟶ +${c.diff}h)<br>`;
-        });
-        summary += `<br>`;
-      }
-
-       if (action.noEstimate.length > 0) {
-          summary += `🔍 <b>Cards sem estimativa</b><br>`;
-          action.noEstimate.forEach((c: any) => {
-          summary += `• ${c.title}<br>`;
-        });
-          summary += `<br>`;
-  }
-}
-
-
-        if (action.type === "insight-request") {
-          if (action.insight === "cards_atrasados") {
-            summary += `📊 <b>Insight: Cards atrasados</b><br>`;
-            summary += `• Total: <b>${action.count}</b><br>`;
-            action.cards.forEach((c: any) => {
-              summary += `• ${c.title} — prazo: ${c.deadline}<br>`;
+          if (action.overworked && action.overworked.length > 0) {
+            summary += `⚠️ <b>Cards que estouraram estimativa</b><br>`;
+            action.overworked.forEach((c: any) => {
+              summary += `• ${c.title} (+${c.diff}h)<br>`;
             });
             summary += `<br>`;
           }
+          if (action.noEstimate && action.noEstimate.length > 0) {
+            summary += `🔍 <b>Cards sem estimativa</b><br>`;
+            action.noEstimate.forEach((c: any) => (summary += `• ${c.title}<br>`));
+            summary += `<br>`;
+          }
+        }
+
+        if (action.type === "insight-request" && action.insight === "cards_atrasados") {
+          summary += `📊 <b>Insight: Cards atrasados</b><br>`;
+          summary += `• Total: <b>${action.count}</b><br>`;
+          action.cards.forEach((c: any) => {
+            summary += `• ${c.title} — prazo: ${c.deadline}<br>`;
+          });
+          summary += `<br>`;
         }
       });
-
-      
 
       return summary.trim() || null;
     } catch {
@@ -259,8 +256,7 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
     if (!input.trim() || typing) return;
 
     let userText = input.trim();
-    const isJsonMode = userText.startsWith("/json");
-    if (isJsonMode) userText = userText.replace("/json", "").trim();
+    // API forces jsonMode=true now.
 
     setMessages((prev) => [...prev, { from: "user", text: input }]);
     setInput("");
@@ -270,28 +266,21 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userText, jsonMode: isJsonMode }),
+        body: JSON.stringify({ message: userText }),
       });
 
       const data = await res.json();
       let botReply = "";
       let createdCardId: string | undefined = undefined;
 
-      if (isJsonMode) {
-        const raw = JSON.stringify(data.reply ?? {});
-        const formatted = formatAiActionsFromRaw(raw);
-        botReply = formatted || "⚠️ Não consegui interpretar a ação.";
+      if (data.reply && typeof data.reply === "object" && data.reply.actions) {
+        const raw = JSON.stringify(data.reply);
+        botReply = formatAiActionsFromRaw(raw) || "⚠️ Ação executada sem detalhes.";
+      } else if (typeof data.reply === "string") {
+        botReply = data.reply;
       } else {
-
-        if (typeof data.reply === "string") {
-          botReply = data.reply;
-        } else if (typeof data.reply === "object") {
-          const raw = JSON.stringify(data.reply);
-          const formatted = formatAiActionsFromRaw(raw);
-          botReply = formatted || "⚠️ Resposta inesperada.";
-        } else {
-          botReply = "❌ Erro inesperado.";
-        }
+        const raw = JSON.stringify(data.reply);
+        botReply = formatAiActionsFromRaw(raw) || "⚠️ Resposta inesperada.";
       }
 
       setMessages((prev) => [
@@ -300,13 +289,13 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
       ]);
 
       setTimeout(() => {
-  console.log("🟢 Atualizando board (delay IA)...");
-  window.dispatchEvent(new Event("board-update"));
-}, 700);
-      
+        console.log("🟢 Atualizando board (delay IA)...");
+        window.dispatchEvent(new Event("board-update"));
+      }, 700);
+
       if (botSound.current) {
         botSound.current.currentTime = 0;
-        botSound.current.play().catch(() => {});
+        botSound.current.play().catch(() => { });
       }
     } catch {
       setMessages((prev) => [
@@ -350,16 +339,14 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
           {messages.map((msg, index) => (
             <div
               key={index}
-              className={`flex ${
-                msg.from === "user" ? "justify-end" : "justify-start"
-              }`}
+              className={`flex ${msg.from === "user" ? "justify-end" : "justify-start"
+                }`}
             >
               <div
-                className={`px-4 py-2 rounded-lg max-w-[80%] text-sm whitespace-pre-wrap ${
-                  msg.from === "user"
+                className={`px-4 py-2 rounded-lg max-w-[80%] text-sm whitespace-pre-wrap ${msg.from === "user"
                     ? "bg-emerald-600 text-white"
                     : "bg-gray-800 text-gray-100 border border-gray-700"
-                }`}
+                  }`}
               >
                 <div
                   dangerouslySetInnerHTML={{
@@ -389,22 +376,27 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
         </div>
 
         {/* INPUT */}
-        <div className="p-4 border-t border-gray-700 flex gap-2 bg-[#0d1117]">
-          <input
-            type="text"
-            className="flex-1 px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-white"
-            placeholder="Digite algo... (use /json para JSON Mode)"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          />
-          <button
-            onClick={handleSend}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded"
-            disabled={typing}
-          >
-            Enviar
-          </button>
+        <div className="p-4 border-t border-gray-700 bg-[#0d1117] flex flex-col gap-2">
+          <label className="text-xs text-gray-400 font-medium ml-1">
+            O que você precisa fazer hoje?
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              className="flex-1 px-3 py-2 rounded-lg bg-gray-900 border border-gray-700 text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 placeholder-gray-600"
+              placeholder="Ex: 'Criar tarefa comprar café' ou 'Me dê um conselho'"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            />
+            <button
+              onClick={handleSend}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium text-sm transition-colors"
+              disabled={typing}
+            >
+              Enviar
+            </button>
+          </div>
         </div>
       </div>
     </div>
