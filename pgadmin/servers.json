@@ -1,0 +1,15 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Kanbanize",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "postgres",
+      "Username": "postgres",
+      "Password": "admin",
+      "SSLMode": "prefer",
+      "Passfile": "/var/lib/pgadmin/.pgpass"
+    }
+  }
+}

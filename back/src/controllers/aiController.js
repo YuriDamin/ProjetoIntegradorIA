@@ -134,12 +134,32 @@ Regras:
     ]
   }
   
-  - Para obter o burn-down de horas:
+  - Para burn-down de horas:
   {
     "actions": [
       {
         "type": "insight-request",
         "query": "burndown"
+      }
+    ]
+  }
+
+  - IMPORTANTE: Se o usuário disser que "já fez", "já comprou", "terminou", "finalizou" algo,
+    entenda isso como uma INTENÇÃO de mover para DONE.
+    Gere uma ação "update-status" com status "done".
+
+  - IMPORTANTE: Se o usuário pedir para criar um card com vário itens (ex: "ir ao mercado comprar banana, arroz, feijão"),
+    Gere DUAS ações:
+    1. "create-card" (com o título principal, ex: "Ir ao mercado")
+    2. "add-checklist" (com os itens extraídos, ex: ["banana", "arroz", "feijão"])
+    Use o MESMO título em "title" (da criação) e "cardTitle" (da checklist).
+
+  - Para obter quantos cards há para HOJE (deadline = hoje), use:
+  {
+    "actions": [
+      {
+        "type": "insight-request",
+        "query": "cards_hoje"
       }
     ]
   }
