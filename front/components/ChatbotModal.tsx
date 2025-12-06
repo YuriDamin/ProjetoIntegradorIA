@@ -95,6 +95,9 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
         if (action.type === "create-card") {
           summary += `🟢 <b>Card criado com sucesso!</b><br>`;
           summary += `• Título: <i>${action.title}</i><br>`;
+          if (action.deadline) {
+            summary += `• Prazo: <i>${action.deadline}</i><br>`;
+          }
           summary += `• Prioridade: <i>${action.priority}</i><br>`;
           summary += `• Coluna: <i>${action.columnId}</i><br><br>`;
         }
@@ -193,6 +196,13 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
           summary += `<i>${action.message}</i><br><br>`;
         }
 
+        if (action.type === "update-checklist-item") {
+          summary += `☑️ <b>Item de checklist atualizado!</b><br>`;
+          summary += `• Card: <i>${action.cardTitle}</i><br>`;
+          summary += `• Item: <i>${action.itemTitle}</i><br>`;
+          summary += `• Concluído: <b>${action.isDone ? "Sim" : "Não"}</b><br><br>`;
+        }
+
         if (action.type === "insight-request" && action.insight === "burndown") {
           summary += `📉 <b>Burn-down de Horas</b><br>`;
           summary += `Estimadas: <b>${action.totalEstimated}h</b><br>`;
@@ -220,6 +230,19 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
             summary += `• ${c.title} — prazo: ${c.deadline}<br>`;
           });
           summary += `<br>`;
+        }
+
+        if (action.type === "insight-request" && action.insight === "cards_hoje") {
+          summary += `📅 <b>Tarefas para Hoje</b><br>`;
+          if (action.count === 0) {
+            summary += `<i>Nenhuma tarefa agendada para hoje. Aproveite!</i><br><br>`;
+          } else {
+            summary += `• Total: <b>${action.count}</b><br>`;
+            action.cards.forEach((c: any) => {
+              summary += `• ${c.title} (${c.priority})<br>`;
+            });
+            summary += `<br>`;
+          }
         }
       });
 
@@ -263,10 +286,13 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
     setTyping(true);
 
     try {
+      // Send history (last 10 messages) to backend for better context
+      const history = messages.slice(-10);
+
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userText }),
+        body: JSON.stringify({ message: userText, history }),
       });
 
       const data = await res.json();
@@ -344,8 +370,8 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
             >
               <div
                 className={`px-4 py-2 rounded-lg max-w-[80%] text-sm whitespace-pre-wrap ${msg.from === "user"
-                    ? "bg-emerald-600 text-white"
-                    : "bg-gray-800 text-gray-100 border border-gray-700"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-gray-800 text-gray-100 border border-gray-700"
                   }`}
               >
                 <div

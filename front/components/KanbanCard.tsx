@@ -91,7 +91,6 @@ export default function KanbanCard({ card, index, onClick }: CardProps) {
         onClick={() => onClick(card)}
         className="
           bg-white/10
-          backdrop-blur-lg
           rounded-xl
           p-4
           mb-4

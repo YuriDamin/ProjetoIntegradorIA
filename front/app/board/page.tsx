@@ -62,27 +62,27 @@ export default function BoardPage() {
     loadBoard();
   }, []);
 
-useEffect(() => {
-  const socket = io("http://localhost:3001", {
-    withCredentials: true,
-  });
+  useEffect(() => {
+    const socket = io("http://localhost:3001", {
+      withCredentials: true,
+    });
 
-  socket.on("board-updated", () => {
-    if (window.chatbotOpen) return;
-    loadBoard();
-  });
+    socket.on("board-updated", () => {
+      if (window.chatbotOpen) return;
+      loadBoard();
+    });
 
-  return () => {
-    socket.disconnect();
-  };
-}, []);
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
 
 
   // 🔹 Atualização via IA — board-update event
   useEffect(() => {
     function handleChatbotUpdate() {
-    console.log("🔥 EVENTO RECEBIDO DO CHATBOT");
+      console.log("🔥 EVENTO RECEBIDO DO CHATBOT");
       loadBoard();
     }
 
@@ -245,20 +245,24 @@ useEffect(() => {
   return (
     <>
       {/* 🔥 ESSA PARTE RE-RENDERIZA */}
-      <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0A1224] to-[#020617] p-6">
-        <Topbar userName={userName} onLogout={handleLogout} />
+      {/* 🔥 ESSA PARTE RE-RENDERIZA */}
+      <div className="h-screen overflow-hidden bg-gradient-to-br from-[#050816] via-[#0A1224] to-[#020617] flex flex-col">
+        <div className="flex-shrink-0 p-6 pb-0">
+          <Topbar userName={userName} onLogout={handleLogout} />
+        </div>
 
-        <div className="max-w-7xl mx-auto mt-10 space-y-8">
+        <div className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
           <DragDropContext onDragEnd={onDragEnd}>
-            <div className="flex gap-8 justify-center flex-wrap pb-8">
+            <div className="flex h-full gap-8 p-6 min-w-max items-start">
               {data.columnOrder.map((colId) => (
-                <KanbanColumn
-                  key={colId}
-                  column={data.columns[colId]}
-                  cards={data.columns[colId].cards}
-                  onAddCard={handleAddCard}
-                  onCardClick={onCardClick}
-                />
+                <div key={colId} className="h-full">
+                  <KanbanColumn
+                    column={data.columns[colId]}
+                    cards={data.columns[colId].cards}
+                    onAddCard={handleAddCard}
+                    onCardClick={onCardClick}
+                  />
+                </div>
               ))}
             </div>
           </DragDropContext>

@@ -25,11 +25,14 @@ function extractJSON(result) {
   }
 }
 
-function buildJsonPrompt(userMessage, today, activeCards) {
+function buildJsonPrompt(userMessage, today, activeCards, history = []) {
+  const historyText = history.map(msg => `${msg.from}: ${msg.text}`).join("\n");
   return `
 Você é um agente especializado em automatizar um quadro Kanban.
 Hoje é: ${today}
 Cartões existentes no quadro: [${activeCards}]
+Histórico recente:
+${historyText}
 
 Sempre responda APENAS um JSON válido, SEM texto extra e SEM markdown.
 
@@ -42,34 +45,33 @@ O formato SEMPRE deve ser:
                "delete-card" | "update-deadline" | "update-assignee" |
                "update-description" | "update-title" | "update-labels"|
                "update-estimated-hours" | "update-worked-hours" | "add-worked-hours" |
+// ...
+// Inside buildJsonPrompt:
+
                "update-priority" | "update-status" | "bulk-update" | "bulk-delete" 
-               | "insight-request" | "chat-response",
+               | "insight-request" | "chat-response" | "update-checklist-item",
       "title": "nome do card (somente create-card)",
       "description": "descrição detalhada do card (somente create-card)",
-      "cardTitle": "nome do card existente (obrigatório para mover, checklist, deletar, atualizar)",
+      "status": "backlog | doing | done", // para update-status
+      "cardTitle": "nome do card existente (obrigatório para actions de update)",
+      "itemTitle": "texto do item da checklist (para update-checklist-item)",
+      "isDone": true | false, // para update-checklist-item
+      "query": "cards_hoje | cards_atrasados | burndown", 
       "priority": "baixa | media | alta | urgente",
       "deadline": "AAAA-MM-DD",
-      "assignee": "responsável",
-      "labels": ["tag1", "tag2"],
-      "columnId": "backlog | doing | done",
-      "toColumn": "backlog | doing | done",
-      "items": ["item 1", "item 2"],
-      "message": "Texto do conselho ou resposta (somente chat-response)"
-    }
-  ]
-}
-
-Regras:
-- Se o usuário pedir para criar um card, use "type": "create-card".
-  - IMPORTANTE: Antes de criar, VERIFIQUE a lista de "Cartões existentes".
-  - Se já existir um cartão com nome MUITO similar e o usuário estiver adicionando detalhes ou checklist,
-    use "add-checklist" ou "update-description" nesse cartão existente em vez de criar um novo.
-  - Exemplo: Se existe "Ir ao mercado" e usuário diz "comprar suco no mercado", gere "add-checklist" para "Ir ao mercado".
-
+// ...
+// Regras:
+// ...
 - Datas relativas:
-  - Se o usuário disser "amanhã", calcule a data com base em ${today}.
+  - Se o usuário disser "amanhã", OBRIGATORIAMENTE calcule a data com base em ${today} e preencha o campo "deadline".
   - Se disser "próxima sexta", calcule a data correta.
-  - Formato de data sempre: AAAA-MM-DD.
+  - Nunca deixe "deadline" vazio se houver menção temporal.
+// ...
+// Checklist Items:
+- Se o usuário pedir para marcar um ITEM (não o card) como concluído/feito (ex: "já comprei o suco"), use "type": "update-checklist-item".
+  - Preencha "cardTitle" com o nome do card (infira pelo contexto, ex: "Ir ao mercado").
+  - Preencha "itemTitle" com o nome do item (ex: "Suco").
+  - Preencha "isDone": true.
 
 - Para "create-card", sempre gerar também o campo "description" e "labels" (baseado no título).
 - Labels devem ser JSON array de strings: ["tag1", "tag2"].
@@ -82,7 +84,12 @@ Regras:
     1. "create-card"
     2. "add-checklist" (use o MESMO título).
 
-- Se pedir para apagar/remover/excluir, use "type": "delete-card".
+- delete-card:
+  - SEGURANÇA: Se o usuário pedir para apagar/remover/excluir:
+    1. Verifique se ele CONFIRMOU explicitamente (disse "sim", "confirmo", "pode apagar" logo após o pedido ou no contexto).
+    2. Se NÃO houver confirmação clara no histórico recente, NÃO gere "delete-card".
+       - Gere "chat-response" com message: "Tem certeza que deseja excluir a tarefa [Nome]? Responda com 'Sim' para confirmar."
+    3. Se houver confirmação, gere "delete-card".
 - Se pedir para alterar prazo/data/deadline, use "type": "update-deadline".
 - Se mencionar responsável/atribuir, use "assignee".
 
@@ -98,6 +105,19 @@ Regras:
 
 - IMPORTANTE: Se o usuário disser que "já fez", "terminou", use "update-status" -> "done".
 
+EXEMPLOS DE USO:
+1. Usuário: "Comprar leite amanhã"
+   Ação: { "type": "create-card", "title": "Comprar leite", "deadline": "2024-XX-XX" (data calculada) }
+
+2. Usuário: "Quantas tarefas tenho hoje?"
+   Ação: { "type": "insight-request", "query": "cards_hoje" }
+
+3. Usuário: "Já comprei o suco" (supondo que "Suco" seja um item de checklist no card "Mercado")
+   Ação: { "type": "update-checklist-item", "cardTitle": "Mercado", "itemTitle": "Suco", "isDone": true }
+
+4. Usuário: "O projeto acabou"
+   Ação: { "type": "update-status", "cardTitle": "Projeto", "newStatus": "done" }
+
 Agora gere as ações para o pedido do usuário abaixo:
 
 "${userMessage}"
@@ -107,7 +127,7 @@ Agora gere as ações para o pedido do usuário abaixo:
 module.exports = {
   async chat(req, res) {
     try {
-      const { message } = req.body;
+      const { message, history } = req.body;
       const jsonMode = true;
 
 
@@ -134,7 +154,7 @@ module.exports = {
       });
 
       const prompt = jsonMode
-        ? buildJsonPrompt(message, today, cardTitles)
+        ? buildJsonPrompt(message, today, cardTitles, history)
         : message;
 
 

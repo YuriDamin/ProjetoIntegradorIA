@@ -89,7 +89,7 @@ module.exports = {
             priority,
             columnId,
             status: columnId,
-            deadline: null,
+            deadline: action.deadline || null,
             estimatedHours: null,
             workedHours: 0,
             assignee: null,
@@ -257,6 +257,68 @@ module.exports = {
             deadline,
           });
 
+          continue;
+        }
+
+        if (action.type === "update-checklist-item") {
+          const cardTitle = action.cardTitle || action.title || action.nome;
+          const itemTitle = action.itemTitle || action.item || action.texto;
+          const isDone = action.isDone === true || action.done === true; // Default false if undefined? Probably true if action is update.
+
+          // If AI sends "isDone" explicitly.
+          // If user says "mark done", AI sends isDone: true.
+
+          if (!itemTitle) {
+            results.push({ ok: false, type: "update-checklist-item", error: "Item não informado" });
+            continue;
+          }
+
+          const card = await findCard(cardTitle);
+          if (!card) {
+            results.push({ ok: false, type: "update-checklist-item", error: "Card não encontrado" });
+            continue;
+          }
+
+          // Find Item
+          // Try exact match or iLike
+          let item = await Checklist.findOne({ where: { cardId: card.id, text: itemTitle } });
+          if (!item) {
+            // Try iLike
+            try {
+              item = await Checklist.findOne({
+                where: {
+                  cardId: card.id,
+                  text: { [Op.iLike]: itemTitle }
+                }
+              });
+            } catch (e) { }
+          }
+          // Try partial match if not found? "%itemTitle%"
+          if (!item) {
+            try {
+              item = await Checklist.findOne({
+                where: {
+                  cardId: card.id,
+                  text: { [Op.iLike]: `%${itemTitle}%` }
+                }
+              });
+            } catch (e) { }
+          }
+
+          if (!item) {
+            results.push({ ok: false, type: "update-checklist-item", error: `Item "${itemTitle}" não encontrado no card "${card.title}"` });
+            continue;
+          }
+
+          await item.update({ done: isDone });
+
+          results.push({
+            ok: true,
+            type: "update-checklist-item",
+            cardTitle: card.title,
+            itemTitle: item.text,
+            isDone
+          });
           continue;
         }
 
@@ -591,7 +653,9 @@ module.exports = {
         }
 
         if (action.type === "insight-request") {
-          if (action.query === "cards_hoje") {
+          const query = action.query || action.insight;
+
+          if (query === "cards_hoje") {
             const today = new Date().toISOString().substring(0, 10);
 
             const all = await Card.findAll({
@@ -625,7 +689,7 @@ module.exports = {
             continue;
           }
 
-          if (action.query === "cards_atrasados") {
+          if (query === "cards_atrasados") {
             const today = new Date().toISOString().substring(0, 10);
 
             const all = await Card.findAll({
@@ -661,7 +725,7 @@ module.exports = {
             continue;
           }
 
-          if (action.query === "burndown") {
+          if (query === "burndown") {
             let cards = [];
 
             // 🔎 FILTRAR POR CARD ESPECÍFICO

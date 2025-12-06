@@ -8,16 +8,10 @@ interface Props {
   onClose: () => void;
   dateLabel: string;
   tasks: Card[];
+  onTaskClick: (task: Card) => void;
 }
 
-export default function CalendarDayModal({ open, onClose, dateLabel, tasks }: Props) {
-  function highlightCard(cardId: string) {
-    window.location.href = "/"; 
-    setTimeout(() => {
-      window.dispatchEvent(new CustomEvent("highlight-card", { detail: cardId }));
-    }, 500);
-  }
-
+export default function CalendarDayModal({ open, onClose, dateLabel, tasks, onTaskClick }: Props) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg bg-[#0f172a] text-white border border-white/10">
@@ -34,6 +28,7 @@ export default function CalendarDayModal({ open, onClose, dateLabel, tasks }: Pr
             {tasks.map((task) => (
               <div
                 key={task.id}
+                onClick={() => onTaskClick(task)}
                 className="
                   p-4 rounded-xl border border-white/10 bg-white/5 
                   hover:bg-white/10 transition cursor-pointer
@@ -56,20 +51,19 @@ export default function CalendarDayModal({ open, onClose, dateLabel, tasks }: Pr
                       Coluna: <span className="text-emerald-300">{task.columnId}</span>
                     </p>
                   </div>
-{/* Badge de prioridade */}
-<div
-  className={`
+                  {/* Badge de prioridade */}
+                  <div
+                    className={`
     text-xs px-3 py-1 rounded-lg border font-semibold
-    ${
-      task.priority === "urgente" ? "bg-red-500/20 text-red-300 border-red-500/40" :
-      task.priority === "alta" ? "bg-orange-500/20 text-orange-300 border-orange-500/40" :
-      task.priority === "media" ? "bg-blue-500/20 text-blue-300 border-blue-500/40" :
-      "bg-slate-500/20 text-slate-300 border-slate-500/40"
-    }
+    ${task.priority === "urgente" ? "bg-red-500/20 text-red-300 border-red-500/40" :
+                        task.priority === "alta" ? "bg-orange-500/20 text-orange-300 border-orange-500/40" :
+                          task.priority === "media" ? "bg-blue-500/20 text-blue-300 border-blue-500/40" :
+                            "bg-slate-500/20 text-slate-300 border-slate-500/40"
+                      }
   `}
->
-  {task.priority.toUpperCase()}
-</div>
+                  >
+                    {task.priority.toUpperCase()}
+                  </div>
 
                 </div>
               </div>

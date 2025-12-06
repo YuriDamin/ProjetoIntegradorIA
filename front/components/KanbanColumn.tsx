@@ -26,7 +26,8 @@ export default function KanbanColumn({
   return (
     <div
       className="
-        w-80 
+        w-80
+        h-full max-h-full
         bg-gradient-to-br from-[#101826] to-[#0a0f19]
         backdrop-blur-sm
         p-5 
@@ -59,6 +60,8 @@ export default function KanbanColumn({
               flex-1
               space-y-4
               transition-all
+              overflow-y-auto
+              pr-2
             "
           >
             {cards.map((card, index) => (

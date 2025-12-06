@@ -25,7 +25,7 @@ export default function AddCard({ onAdd }: AddCardProps) {
         <div
           className="
             space-y-3 p-3 rounded-xl
-            bg-white/10 backdrop-blur-md
+            bg-white/10
             border border-white/20 shadow-lg
             transition-all
           "

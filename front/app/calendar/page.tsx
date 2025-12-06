@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Topbar from "@/components/Topbar";
 import { BoardData, Card } from "@/types/kanban";
 import CalendarDayModal from "@/components/CalendarDayModal";
+import EditCardModal from "@/components/EditCardModal";
 import {
   DragDropContext,
   Droppable,
@@ -62,6 +63,8 @@ export default function CalendarPage() {
   const [selectedTasks, setSelectedTasks] = useState<Card[]>([]);
   const [selectedDateLabel, setSelectedDateLabel] = useState("");
 
+  const [editingCard, setEditingCard] = useState<Card | null>(null);
+
   useEffect(() => {
     const hasToken = document.cookie.includes("token=");
     if (!hasToken) {
@@ -97,8 +100,6 @@ export default function CalendarPage() {
     loadBoard();
   }, []);
 
-
-
   if (loading || !board) {
     return (
       <div className="min-h-screen flex items-center justify-center text-white text-xl">
@@ -106,7 +107,6 @@ export default function CalendarPage() {
       </div>
     );
   }
-
 
   const uniqueAssignees = Array.from(
     new Set(
@@ -147,7 +147,6 @@ export default function CalendarPage() {
       });
   });
 
-
   const month = currentDate.getMonth();
   const todayKey = dateKey(new Date());
   const monthMatrix = getMonthMatrix(currentDate);
@@ -187,7 +186,6 @@ export default function CalendarPage() {
     window.location.href = "/login";
   }
 
-  // Update logic to handle 'unscheduled'
   async function handleDragEnd(result: DropResult) {
     const { destination, source, draggableId } = result;
 
@@ -248,27 +246,103 @@ export default function CalendarPage() {
     });
   }
 
+  async function handleSaveCard(updated: Card) {
+    try {
+      await fetch(`/api/cards/${updated.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updated),
+      });
+      loadBoard();
+    } catch (err) {
+      console.error("Erro ao salvar card:", err);
+    }
+  }
+
+  async function handleDeleteCard(id: string) {
+    if (!confirm("Tem certeza que deseja excluir?")) return;
+    try {
+      await fetch(`/api/cards/${id}`, { method: "DELETE" });
+      loadBoard();
+    } catch (err) {
+      console.error("Erro ao excluir card:", err);
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0A1224] to-[#020617] p-6">
-      {/* Topbar */}
-      <Topbar userName={userName} onLogout={handleLogout} />
+    <div className="h-screen overflow-hidden bg-gradient-to-br from-[#050816] via-[#0A1224] to-[#020617] flex flex-col">
+      <div className="flex-shrink-0 p-6 pb-0">
+        <Topbar userName={userName} onLogout={handleLogout} />
+      </div>
 
-      {/* Main Layout Grid */}
-      <div className="max-w-[1600px] mx-auto mt-10 flex flex-col lg:flex-row gap-8 text-white">
+      {/* Main Layout Grid: Full Width now */}
+      <div className="flex-1 w-full px-6 mt-4 pb-6 min-h-0 flex flex-col lg:flex-row gap-6 text-white overflow-hidden">
 
-        {/* Sidebar: Sem Data */}
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="w-full lg:w-64 flex-shrink-0 flex flex-col gap-4">
-            <div className="p-4 bg-white/5 border border-white/10 rounded-xl max-h-[80vh] flex flex-col">
-              <h3 className="text-lg font-bold mb-2 text-slate-200">Sem Data</h3>
-              <p className="text-xs text-slate-400 mb-4">Arraste para o calendário</p>
+          {/* SIDEBAR: Filters + Unscheduled */}
+          <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-4">
+
+            {/* FILTERS moved to Sidebar */}
+            <div className="p-4 bg-white/5 border border-white/10 rounded-xl flex flex-col gap-4">
+              <h3 className="text-sm font-bold text-slate-200">Filtros</h3>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-slate-400">Coluna:</label>
+                <select
+                  value={filterColumn}
+                  onChange={(e) => setFilterColumn(e.target.value)}
+                  className="bg-white/10 border border-white/20 text-white px-2 py-1 rounded text-sm w-full"
+                >
+                  <option className="text-black" value="">Todas</option>
+                  <option className="text-black" value="backlog">Backlog</option>
+                  <option className="text-black" value="doing">Em andamento</option>
+                  <option className="text-black" value="done">Concluído</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-slate-400">Status:</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className="bg-white/10 border border-white/20 text-white px-2 py-1 rounded text-sm w-full"
+                >
+                  <option className="text-black" value="">Todos</option>
+                  <option className="text-black" value="backlog">Backlog</option>
+                  <option className="text-black" value="doing">Em andamento</option>
+                  <option className="text-black" value="review">Em revisão</option>
+                  <option className="text-black" value="done">Finalizado</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-slate-400">Responsável:</label>
+                <select
+                  value={filterAssignee}
+                  onChange={(e) => setFilterAssignee(e.target.value)}
+                  className="bg-white/10 border border-white/20 text-white px-2 py-1 rounded text-sm w-full"
+                >
+                  <option className="text-black" value="">Todos</option>
+                  {uniqueAssignees.map((resp) => (
+                    <option className="text-black" key={resp} value={resp}>
+                      {resp}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Unscheduled Tasks */}
+            <div className="p-4 bg-white/5 border border-white/10 rounded-xl flex-1 flex flex-col min-h-0">
+              <h3 className="text-sm font-bold mb-2 text-slate-200">Sem Data</h3>
+              <p className="text-[10px] text-slate-400 mb-2">Arraste para agendar</p>
 
               <Droppable droppableId="unscheduled">
                 {(provided) => (
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[200px]"
+                    className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[100px]"
                   >
                     {unscheduledTasks.map((task, index) => (
                       <Draggable key={task.id} draggableId={task.id} index={index}>
@@ -278,9 +352,9 @@ export default function CalendarPage() {
                             {...dragProvided.draggableProps}
                             {...dragProvided.dragHandleProps}
                             className={`
-                                                p-2 rounded-lg border border-white/10 bg-slate-800/50 text-xs shadow-sm
-                                                ${snapshot.isDragging ? "ring-2 ring-blue-500 opacity-90" : "hover:bg-slate-700/50"}
-                                            `}
+                              p-2 rounded-lg border border-white/10 bg-slate-800/50 text-xs shadow-sm
+                              ${snapshot.isDragging ? "ring-2 ring-blue-500 opacity-90" : "hover:bg-slate-700/50"}
+                            `}
                           >
                             <div className="font-semibold text-slate-200 truncate">{task.title}</div>
                             <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400">
@@ -293,7 +367,7 @@ export default function CalendarPage() {
                     ))}
                     {provided.placeholder}
                     {unscheduledTasks.length === 0 && (
-                      <div className="text-center text-xs text-slate-500 mt-10">Vazio</div>
+                      <div className="text-center text-xs text-slate-500 mt-4">Vazio</div>
                     )}
                   </div>
                 )}
@@ -302,26 +376,21 @@ export default function CalendarPage() {
           </div>
 
           {/* Calendar Area */}
-          <div className="flex-1 space-y-6">
+          <div className="flex-1 flex flex-col space-y-4 h-full min-w-0">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold">Calendário de Tarefas</h1>
-                <p className="text-slate-300 text-sm mt-1">
-                  Visualize e arraste as tarefas entre os dias para alterar o
-                  deadline.
-                </p>
+                <h1 className="text-3xl font-bold">Calendário</h1>
               </div>
 
-              {/* Navegação de meses */}
               <div className="flex items-center gap-4">
                 <button
                   onClick={goPrevMonth}
                   className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/20 text-sm"
                 >
-                  ← Mês anterior
+                  ← Anterior
                 </button>
 
-                <div className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-sm font-semibold">
+                <div className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-sm font-semibold min-w-[140px] text-center">
                   {formatMonthYear(currentDate)}
                 </div>
 
@@ -329,59 +398,8 @@ export default function CalendarPage() {
                   onClick={goNextMonth}
                   className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/20 text-sm"
                 >
-                  Próximo mês →
+                  Próximo →
                 </button>
-              </div>
-            </div>
-
-            {/* FILTROS */}
-            <div className="flex flex-wrap items-center gap-6 p-4 bg-white/5 border border-white/10 rounded-xl">
-              {/* Coluna */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-slate-300">Coluna:</label>
-                <select
-                  value={filterColumn}
-                  onChange={(e) => setFilterColumn(e.target.value)}
-                  className="bg-white/10 border border-white/20 text-white px-3 py-1 rounded-lg text-sm"
-                >
-                  <option className="text-black" value="">Todas</option>
-                  <option className="text-black" value="backlog">Backlog</option>
-                  <option className="text-black" value="doing">Em andamento</option>
-                  <option className="text-black" value="done">Concluído</option>
-                </select>
-              </div>
-
-              {/* Status interno */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-slate-300">Status:</label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="bg-white/10 border border-white/20 text-white px-3 py-1 rounded-lg text-sm"
-                >
-                  <option className="text-black" value="">Todos</option>
-                  <option className="text-black" value="backlog">Backlog</option>
-                  <option className="text-black" value="doing">Em andamento</option>
-                  <option className="text-black" value="review">Em revisão</option>
-                  <option className="text-black" value="done">Finalizado</option>
-                </select>
-              </div>
-
-              {/* Responsável */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-slate-300">Responsável:</label>
-                <select
-                  value={filterAssignee}
-                  onChange={(e) => setFilterAssignee(e.target.value)}
-                  className="bg-white/10 border border-white/20 text-white px-3 py-1 rounded-lg text-sm"
-                >
-                  <option className="text-black" value="">Todos</option>
-                  {uniqueAssignees.map((resp) => (
-                    <option className="text-black" key={resp} value={resp}>
-                      {resp}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 
@@ -397,21 +415,16 @@ export default function CalendarPage() {
               ))}
             </div>
 
-            {/* Grade do mês com Drag & Drop */}
-            {/* Note: DragDropContext is already wrapping the parent, so we don't nest it here.
-                We moved DragDropContext to wrap both Sidebar and Grid.
-            */}
-            <div className="grid grid-cols-7 gap-2">
+            <div className="grid grid-cols-7 grid-rows-6 gap-2 flex-1 h-full min-h-0">
               {monthMatrix.map((week, wi) =>
                 week.map((day, di) => {
                   const key = dateKey(day);
                   const tasks = tasksByDate[key] || [];
-
                   const isCurrentMonth = day.getMonth() === month;
                   const isToday = key === todayKey;
 
                   const baseClasses =
-                    "min-h-[85px] rounded-xl p-1 border flex flex-col bg-white/5 transition-all cursor-pointer";
+                    "h-full rounded-xl p-1 border flex flex-col bg-white/5 transition-all cursor-pointer overflow-hidden";
 
                   const borderColor = isToday
                     ? "border-yellow-400"
@@ -438,7 +451,6 @@ export default function CalendarPage() {
                             >
                               {day.getDate()}
                             </span>
-
                             {isToday && (
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/40">
                                 Hoje
@@ -446,17 +458,16 @@ export default function CalendarPage() {
                             )}
                           </div>
 
-                          {/* Tarefas do dia (Draggable) */}
                           <div className="space-y-1 mt-1 overflow-hidden">
-                            {tasks.map((task, index) => {
+                            {tasks.slice(0, 1).map((task, index) => {
                               const today = new Date();
                               today.setHours(0, 0, 0, 0);
-
                               const d = new Date(`${key}T00:00:00`);
 
                               let dot = "bg-emerald-500";
                               if (d < today) dot = "bg-red-500";
                               if (key === todayKey) dot = "bg-yellow-400";
+                              if (task.status === "done") dot = "bg-slate-500";
 
                               return (
                                 <Draggable
@@ -469,29 +480,36 @@ export default function CalendarPage() {
                                       ref={dragProvided.innerRef}
                                       {...dragProvided.draggableProps}
                                       {...dragProvided.dragHandleProps}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingCard(task);
+                                      }}
                                       className={`
-                                          flex items-center gap-2 px-2 py-1 text-[11px]
-                                          bg-black/30 border border-white/10 rounded-lg
-                                          truncate transition-all
-                                          ${snapshot.isDragging
+                                        flex items-center gap-2 px-2 py-1 text-[11px]
+                                        bg-black/30 border border-white/10 rounded-lg
+                                        truncate transition-all hover:bg-white/10
+                                        ${snapshot.isDragging
                                           ? "scale-105 bg-white/20 shadow-lg"
                                           : ""
                                         }
-                                        `}
+                                      `}
                                     >
-                                      <span
-                                        className={`w-2 h-2 rounded-full ${dot}`}
-                                      />
-                                      <span className="truncate">
-                                        {task.title}
-                                      </span>
+                                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
+                                      <span className="truncate">{task.title}</span>
                                     </div>
                                   )}
                                 </Draggable>
                               );
                             })}
 
-                            {/* Remove placeholder text if empty to save space or keep consistent */}
+                            {tasks.length > 1 && (
+                              <div className="flex items-center gap-1 pl-1 mt-1">
+                                <span className="flex items-center justify-center bg-white/10 border border-white/10 rounded-full w-5 h-5 text-[10px] text-slate-300 font-bold">
+                                  +{tasks.length - 1}
+                                </span>
+                              </div>
+                            )}
+
                             {provided.placeholder}
                           </div>
                         </div>
@@ -505,12 +523,23 @@ export default function CalendarPage() {
         </DragDropContext>
       </div>
 
-      {/* Modal de detalhes do dia */}
       <CalendarDayModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         dateLabel={selectedDateLabel}
         tasks={selectedTasks}
+        onTaskClick={(task) => {
+          setModalOpen(false); // Close day modal first
+          setEditingCard(task); // Open edit modal
+        }}
+      />
+
+      <EditCardModal
+        open={!!editingCard}
+        card={editingCard}
+        onClose={() => setEditingCard(null)}
+        onSave={handleSaveCard}
+        onDelete={handleDeleteCard}
       />
     </div>
   );
