@@ -1,4 +1,5 @@
 const { Column, Card, Checklist } = require("../models");
+const { Op } = require("sequelize");
 
 function mapStatus(columnId) {
   if (columnId === "doing") return "doing";
@@ -29,11 +30,64 @@ function normalizeChecklist(list) {
 }
 
 module.exports = {
+  async stats(req, res) {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
 
+      // Helper to get YYYY-MM-DD in PT-BR (Brasilia Time) for TODAY
+      const getPtBRDate = (d) => {
+        return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }).split('/').reverse().join('-');
+      };
+
+      const todayStr = getPtBRDate(new Date());
+
+      const allCards = await Card.findAll({
+        where: {
+          [Op.or]: [
+            { status: { [Op.ne]: 'done' } },
+            { status: { [Op.is]: null } }
+          ],
+          deadline: { [Op.not]: null } // Explicitly exclude tasks with no deadline
+        }
+      });
+
+      let overdue = 0;
+      let dueSoon = 0; // Represents "Today"
+      let onTrack = 0; // Represents "Future"
+
+      for (const card of allCards) {
+        if (!card.deadline) continue;
+
+        // Use ISO string (UTC) for deadline to avoid timezone shifting it to previous day.
+        // Assuming deadline is stored as UTC Midnight for the intended date.
+        const d = new Date(card.deadline);
+        if (isNaN(d.getTime())) continue;
+
+        const cardDateStr = d.toISOString().split('T')[0];
+        console.log(`[Stats Debug] Card ${card.id}: DeadlineRaw=${card.deadline}, UTC=${cardDateStr}, TodayData=${todayStr}`);
+
+        if (cardDateStr < todayStr) {
+          overdue++;
+        } else if (cardDateStr === todayStr) {
+          dueSoon++;
+        } else {
+          onTrack++;
+        }
+      }
+
+      return res.json({ overdue, dueSoon, onTrack });
+
+    } catch (err) {
+      console.error("Erro stats:", err);
+      return res.status(500).json({ error: "Erro stats" });
+    }
+  },
 
   async create(req, res) {
     try {
-      const { title, columnId } = req.body;
+      const { title, columnId, priority } = req.body;
 
       if (!title || !columnId) {
         return res.status(400).json({ error: "title e columnId são obrigatórios" });
@@ -44,7 +98,7 @@ module.exports = {
         return res.status(400).json({ error: "Coluna inválida" });
       }
 
-      const safePriority = normalizePriority(req.body.priority);
+      const safePriority = normalizePriority(priority);
 
       const card = await Card.create({
         title,
@@ -85,14 +139,14 @@ module.exports = {
         body.priority = normalizePriority(body.priority);
       }
 
-    const allowedStatuses = ["backlog", "doing", "review", "done"];
+      const allowedStatuses = ["backlog", "doing", "review", "done"];
 
-if (body.status && !allowedStatuses.includes(body.status)) {
-  return res.status(400).json({
-    error: "Status inválido",
-    permitido: allowedStatuses
-  });
-}
+      if (body.status && !allowedStatuses.includes(body.status)) {
+        return res.status(400).json({
+          error: "Status inválido",
+          permitido: allowedStatuses
+        });
+      }
 
 
       await card.update(body);

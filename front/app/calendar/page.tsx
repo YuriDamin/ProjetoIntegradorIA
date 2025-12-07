@@ -5,6 +5,8 @@ import Topbar from "@/components/Topbar";
 import { BoardData, Card } from "@/types/kanban";
 import CalendarDayModal from "@/components/CalendarDayModal";
 import EditCardModal from "@/components/EditCardModal";
+import SearchResultsModal from "@/components/SearchResultsModal";
+import ChatbotButton from "@/components/ChatbotButton";
 import {
   DragDropContext,
   Droppable,
@@ -41,6 +43,32 @@ function getMonthMatrix(currentDate: Date): Date[][] {
   return matrix;
 }
 
+function getWeekMatrix(currentDate: Date): Date[][] {
+  const startOfWeek = new Date(currentDate);
+  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay()); // Go to Sunday
+
+  const row: Date[] = [];
+  const current = new Date(startOfWeek);
+
+  for (let i = 0; i < 7; i++) {
+    row.push(new Date(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return [row];
+}
+
+function getAgendaDays(currentDate: Date): Date[] {
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const date = new Date(year, month, 1);
+  const days: Date[] = [];
+  while (date.getMonth() === month) {
+    days.push(new Date(date));
+    date.setDate(date.getDate() + 1);
+  }
+  return days;
+}
+
 function dateKey(d: Date) {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -49,15 +77,26 @@ function dateKey(d: Date) {
 }
 
 export default function CalendarPage() {
+  const [viewMode, setViewMode] = useState<'month' | 'week' | 'agenda'>('month');
   const [userName, setUserName] = useState("Usuário");
   const [loading, setLoading] = useState(true);
   const [board, setBoard] = useState<BoardData | null>(null);
 
   const [currentDate, setCurrentDate] = useState(new Date());
 
+  // Picker States
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickerMode, setPickerMode] = useState<'year' | 'month'>('year');
+  const [pickerYear, setPickerYear] = useState(new Date().getFullYear());
+
   const [filterColumn, setFilterColumn] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterPriority, setFilterPriority] = useState("");
   const [filterAssignee, setFilterAssignee] = useState("");
+
+  // Search & Stats Modal logic
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState<Card[]>([]);
+  const [searchTitle, setSearchTitle] = useState("");
 
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Card[]>([]);
@@ -100,6 +139,87 @@ export default function CalendarPage() {
     loadBoard();
   }, []);
 
+  function getAllCards(): Card[] {
+    if (!board) return [];
+    return board.columnOrder.flatMap((colId) => board.columns[colId].cards);
+  }
+
+  function handleSearchClick() {
+    handleSearch("");
+    setSearchModalOpen(true);
+  }
+
+  function handleSearch(term: string) {
+    const all = getAllCards();
+
+    if (!term.trim()) {
+      setSearchResults(all);
+      setSearchTitle("Pesquisar Tarefas");
+      return;
+    }
+    const lower = term.toLowerCase();
+    const filtered = all.filter(c =>
+      c.title.toLowerCase().includes(lower) ||
+      c.description?.toLowerCase().includes(lower) ||
+      c.labels?.some(l => l.toLowerCase().includes(lower))
+    );
+    setSearchResults(filtered);
+    setSearchTitle(`Resultados para: "${term}"`);
+  }
+
+  function handleStatClick(type: 'overdue' | 'dueSoon' | 'onTrack') {
+    const all = getAllCards();
+
+    // Today in Brasilia Time
+    const getPtBRDate = (d: Date) => {
+      return d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }).split('/').reverse().join('-');
+    };
+    const todayStr = getPtBRDate(new Date());
+
+    let filtered: Card[] = [];
+    let title = "";
+
+    // Helper: get YYYY-MM-DD from deadline (assuming ISO/UTC string in db)
+    const getCardDate = (c: Card) => {
+      if (!c.deadline) return "";
+      return c.deadline.toString().substring(0, 10);
+    };
+
+    if (type === 'overdue') {
+      title = "Tarefas Atrasadas";
+      filtered = all.filter(c => {
+        if (!c.deadline || c.status === 'done') return false;
+        const cDateStr = getCardDate(c);
+        return cDateStr < todayStr;
+      });
+    } else if (type === 'dueSoon') {
+      title = "Tarefas para Hoje";
+      filtered = all.filter(c => {
+        if (!c.deadline || c.status === 'done') return false;
+        const cDateStr = getCardDate(c);
+        return cDateStr === todayStr;
+      });
+    } else if (type === 'onTrack') {
+      title = "Tarefas Futuras";
+      filtered = all.filter(c => {
+        if (c.status === 'done') return false;
+        if (!c.deadline) return true;
+        const cDateStr = getCardDate(c);
+        return cDateStr > todayStr;
+      });
+    }
+
+    filtered.sort((a, b) => {
+      const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+      const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+      return da - db;
+    });
+
+    setSearchResults(filtered);
+    setSearchTitle(title);
+    setSearchModalOpen(true);
+  }
+
   if (loading || !board) {
     return (
       <div className="min-h-screen flex items-center justify-center text-white text-xl">
@@ -119,12 +239,14 @@ export default function CalendarPage() {
   const tasksByDate: Record<string, Card[]> = {};
   const unscheduledTasks: Card[] = [];
 
+  // Filter tasks for CALENDAR VIEW (not search, search is now modal)
   board.columnOrder.forEach((colId) => {
     board.columns[colId].cards
       .filter((card) => {
         if (filterColumn && card.columnId !== filterColumn) return false;
-        if (filterStatus && card.status !== filterStatus) return false;
+        if (filterPriority && card.priority !== filterPriority) return false;
         if (filterAssignee && card.assignee !== filterAssignee) return false;
+        // NOTE: Search filter removed call to modal
         return true;
       })
       .forEach((card) => {
@@ -153,16 +275,48 @@ export default function CalendarPage() {
 
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
-  function goPrevMonth() {
-    setCurrentDate(
-      (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
-    );
+  function handlePrev() {
+    setCurrentDate((prev) => {
+      if (viewMode === 'week') {
+        const d = new Date(prev);
+        d.setDate(d.getDate() - 7);
+        return d;
+      }
+      // Month or Agenda -> Prev Month
+      return new Date(prev.getFullYear(), prev.getMonth() - 1, 1);
+    });
   }
 
-  function goNextMonth() {
-    setCurrentDate(
-      (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
-    );
+  function handleNext() {
+    setCurrentDate((prev) => {
+      if (viewMode === 'week') {
+        const d = new Date(prev);
+        d.setDate(d.getDate() + 7);
+        return d;
+      }
+      // Month or Agenda -> Next Month
+      return new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
+    });
+  }
+
+  function goToToday() {
+    setCurrentDate(new Date());
+  }
+
+  function openPicker() {
+    setPickerYear(currentDate.getFullYear());
+    setPickerMode('year');
+    setIsPickerOpen(true);
+  }
+
+  function handleYearSelect(year: number) {
+    setPickerYear(year);
+    setPickerMode('month');
+  }
+
+  function handleMonthSelect(monthIndex: number) {
+    setCurrentDate(new Date(pickerYear, monthIndex, 1));
+    setIsPickerOpen(false);
   }
 
   function openDayModal(day: Date) {
@@ -272,7 +426,12 @@ export default function CalendarPage() {
   return (
     <div className="h-screen overflow-hidden bg-gradient-to-br from-[#050816] via-[#0A1224] to-[#020617] flex flex-col">
       <div className="flex-shrink-0 p-6 pb-0">
-        <Topbar userName={userName} onLogout={handleLogout} />
+        <Topbar
+          userName={userName}
+          onLogout={handleLogout}
+          onSearchClick={handleSearchClick}
+          onStatClick={handleStatClick}
+        />
       </div>
 
       {/* Main Layout Grid: Full Width now */}
@@ -287,31 +446,32 @@ export default function CalendarPage() {
               <h3 className="text-sm font-bold text-slate-200">Filtros</h3>
 
               <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-400">Coluna:</label>
+                <label className="text-xs text-slate-400">Status (Coluna):</label>
                 <select
                   value={filterColumn}
                   onChange={(e) => setFilterColumn(e.target.value)}
-                  className="bg-white/10 border border-white/20 text-white px-2 py-1 rounded text-sm w-full"
-                >
-                  <option className="text-black" value="">Todas</option>
-                  <option className="text-black" value="backlog">Backlog</option>
-                  <option className="text-black" value="doing">Em andamento</option>
-                  <option className="text-black" value="done">Concluído</option>
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-slate-400">Status:</label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
                   className="bg-white/10 border border-white/20 text-white px-2 py-1 rounded text-sm w-full"
                 >
                   <option className="text-black" value="">Todos</option>
                   <option className="text-black" value="backlog">Backlog</option>
                   <option className="text-black" value="doing">Em andamento</option>
                   <option className="text-black" value="review">Em revisão</option>
-                  <option className="text-black" value="done">Finalizado</option>
+                  <option className="text-black" value="done">Concluído</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-slate-400">Prioridade:</label>
+                <select
+                  value={filterPriority}
+                  onChange={(e) => setFilterPriority(e.target.value)}
+                  className="bg-white/10 border border-white/20 text-white px-2 py-1 rounded text-sm w-full"
+                >
+                  <option className="text-black" value="">Todas</option>
+                  <option className="text-black" value="urgente">Urgente</option>
+                  <option className="text-black" value="alta">Alta</option>
+                  <option className="text-black" value="media">Média</option>
+                  <option className="text-black" value="baixa">Baixa</option>
                 </select>
               </div>
 
@@ -352,9 +512,9 @@ export default function CalendarPage() {
                             {...dragProvided.draggableProps}
                             {...dragProvided.dragHandleProps}
                             className={`
-                              p-2 rounded-lg border border-white/10 bg-slate-800/50 text-xs shadow-sm
-                              ${snapshot.isDragging ? "ring-2 ring-blue-500 opacity-90" : "hover:bg-slate-700/50"}
-                            `}
+                                p-2 rounded-lg border border-white/10 bg-slate-800/50 text-xs shadow-sm
+                                ${snapshot.isDragging ? "ring-2 ring-blue-500 opacity-90" : "hover:bg-slate-700/50"}
+                              `}
                           >
                             <div className="font-semibold text-slate-200 truncate">{task.title}</div>
                             <div className="flex items-center justify-between mt-1 text-[10px] text-slate-400">
@@ -377,29 +537,117 @@ export default function CalendarPage() {
 
           {/* Calendar Area */}
           <div className="flex-1 flex flex-col space-y-4 h-full min-w-0">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4 relative z-20">
+              {isPickerOpen && (
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setIsPickerOpen(false)}
+                />
+              )}
+
+              <div className="flex items-center gap-6">
                 <h1 className="text-3xl font-bold">Calendário</h1>
+
+                <div className="relative flex items-center gap-2 bg-white/5 p-1 rounded-xl border border-white/10 z-50">
+                  <button
+                    onClick={handlePrev}
+                    className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg text-slate-300 hover:text-white transition-colors"
+                  >
+                    ←
+                  </button>
+
+                  <div
+                    onClick={openPicker}
+                    className="px-2 py-1 cursor-pointer min-w-[140px] text-center select-none group"
+                  >
+                    <span className="text-sm font-semibold capitalize group-hover:text-blue-400 transition-colors flex items-center justify-center gap-2">
+                      {formatMonthYear(currentDate)}
+                      <span className="text-[10px] opacity-50">▼</span>
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={handleNext}
+                    className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg text-slate-300 hover:text-white transition-colors"
+                  >
+                    →
+                  </button>
+
+                  <button
+                    onClick={goToToday}
+                    className="ml-2 px-3 py-1 bg-yellow-400/10 text-yellow-400 border border-yellow-400/20 rounded-lg text-xs font-bold hover:bg-yellow-400/20 transition-colors"
+                  >
+                    Hoje
+                  </button>
+
+                  {isPickerOpen && (
+                    <div className="absolute top-full left-0 mt-2 bg-[#0F172A] border border-white/20 rounded-xl shadow-2xl p-4 w-64 cursor-default animate-in fade-in zoom-in-95 duration-200">
+                      {pickerMode === 'year' && (
+                        <>
+                          <div className="text-center text-xs text-slate-400 mb-2">Selecione o Ano</div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {Array.from({ length: 12 }).map((_, i) => {
+                              const y = pickerYear - 4 + i;
+                              return (
+                                <button
+                                  key={y}
+                                  onClick={(e) => { e.stopPropagation(); handleYearSelect(y); }}
+                                  className={`p-2 rounded text-sm transition-colors ${y === pickerYear ? 'bg-blue-600 text-white font-bold' : 'hover:bg-white/10 text-slate-300'}`}
+                                >
+                                  {y}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </>
+                      )}
+                      {pickerMode === 'month' && (
+                        <>
+                          <div className="flex items-center justify-between mb-2 px-1">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setPickerMode('year'); }}
+                              className="text-xs text-blue-400 hover:text-blue-300 hover:underline"
+                            >
+                              ← {pickerYear}
+                            </button>
+                            <span className="text-xs text-slate-400">Selecione o Mês</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {Array.from({ length: 12 }).map((_, i) => {
+                              const date = new Date(pickerYear, i, 1);
+                              const name = date.toLocaleDateString("pt-BR", { month: 'short' }).toUpperCase().replace('.', '');
+                              const isActive = i === currentDate.getMonth() && pickerYear === currentDate.getFullYear();
+                              return (
+                                <button
+                                  key={i}
+                                  onClick={(e) => { e.stopPropagation(); handleMonthSelect(i); }}
+                                  className={`p-2 rounded text-xs font-bold transition-colors ${isActive ? 'bg-blue-600 text-white' : 'hover:bg-white/10 text-slate-300'}`}
+                                >
+                                  {name}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={goPrevMonth}
-                  className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/20 text-sm"
-                >
-                  ← Anterior
-                </button>
-
-                <div className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-sm font-semibold min-w-[140px] text-center">
-                  {formatMonthYear(currentDate)}
-                </div>
-
-                <button
-                  onClick={goNextMonth}
-                  className="px-3 py-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/20 text-sm"
-                >
-                  Próximo →
-                </button>
+              <div className="flex bg-white/5 p-1 rounded-lg border border-white/10 z-50">
+                {(['month', 'week', 'agenda'] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setViewMode(m)}
+                    className={`
+                      px-4 py-1.5 text-xs font-medium rounded-md transition-all
+                      ${viewMode === m ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}
+                    `}
+                  >
+                    {m === 'month' ? 'Mês' : m === 'week' ? 'Semana' : 'Agenda'}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -424,7 +672,7 @@ export default function CalendarPage() {
                   const isToday = key === todayKey;
 
                   const baseClasses =
-                    "h-full rounded-xl p-1 border flex flex-col bg-white/5 transition-all cursor-pointer overflow-hidden";
+                    "h-full rounded-xl p-1 border flex flex-col bg-white/5 transition-all cursor-pointer";
 
                   const borderColor = isToday
                     ? "border-yellow-400"
@@ -451,14 +699,21 @@ export default function CalendarPage() {
                             >
                               {day.getDate()}
                             </span>
-                            {isToday && (
-                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/40">
-                                Hoje
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {tasks.length > 1 && (
+                                <span className="flex items-center justify-center bg-white/20 border border-white/20 rounded-md px-1.5 py-0.5 text-[9px] text-white font-bold">
+                                  +{tasks.length - 1}
+                                </span>
+                              )}
+                              {isToday && (
+                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/40">
+                                  Hoje
+                                </span>
+                              )}
+                            </div>
                           </div>
 
-                          <div className="space-y-1 mt-1 overflow-hidden">
+                          <div className="space-y-1 mt-1 flex-1 relative">
                             {tasks.slice(0, 1).map((task, index) => {
                               const today = new Date();
                               today.setHours(0, 0, 0, 0);
@@ -485,14 +740,14 @@ export default function CalendarPage() {
                                         setEditingCard(task);
                                       }}
                                       className={`
-                                        flex items-center gap-2 px-2 py-1 text-[11px]
-                                        bg-black/30 border border-white/10 rounded-lg
-                                        truncate transition-all hover:bg-white/10
-                                        ${snapshot.isDragging
+                                          flex items-center gap-2 px-2 py-1 text-[11px]
+                                          bg-black/30 border border-white/10 rounded-lg
+                                          truncate transition-all hover:bg-white/10
+                                          ${snapshot.isDragging
                                           ? "scale-105 bg-white/20 shadow-lg"
                                           : ""
                                         }
-                                      `}
+                                        `}
                                     >
                                       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
                                       <span className="truncate">{task.title}</span>
@@ -501,14 +756,6 @@ export default function CalendarPage() {
                                 </Draggable>
                               );
                             })}
-
-                            {tasks.length > 1 && (
-                              <div className="flex items-center gap-1 pl-1 mt-1">
-                                <span className="flex items-center justify-center bg-white/10 border border-white/10 rounded-full w-5 h-5 text-[10px] text-slate-300 font-bold">
-                                  +{tasks.length - 1}
-                                </span>
-                              </div>
-                            )}
 
                             {provided.placeholder}
                           </div>
@@ -541,6 +788,19 @@ export default function CalendarPage() {
         onSave={handleSaveCard}
         onDelete={handleDeleteCard}
       />
+
+      <SearchResultsModal
+        open={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        title={searchTitle}
+        cards={searchResults}
+        onCardClick={(task) => {
+          setSearchModalOpen(false);
+          setEditingCard(task);
+        }}
+        onSearchChange={handleSearch}
+      />
+      <ChatbotButton />
     </div>
   );
 }

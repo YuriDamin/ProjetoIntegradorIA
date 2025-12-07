@@ -127,7 +127,7 @@ export default function EditCardModal({
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent
         className="
-          max-w-xl
+          max-w-xl max-h-[85vh] flex flex-col
           bg-white/10 backdrop-blur-xl
           border border-white/20 
           shadow-2xl
@@ -142,7 +142,7 @@ export default function EditCardModal({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4 mt-4">
+        <div className="space-y-4 mt-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
           {/* Título */}
           <Input
             placeholder="Título"

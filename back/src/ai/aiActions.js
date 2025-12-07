@@ -260,6 +260,35 @@ module.exports = {
           continue;
         }
 
+        if (action.type === "bulk-update") {
+          const updates = action.updates || {};
+          const where = {}; // Default: All cards
+
+          // Logic to apply updates to ALL cards (or filtered if we implemented filters)
+          // For now, "all" is the requested scope ("todas as tarefas")
+
+          // Safety: Don't allow empty updates
+          if (Object.keys(updates).length === 0) {
+            results.push({ ok: false, type: "bulk-update", error: "Nenhuma alteração definida" });
+            continue;
+          }
+
+          if (updates.deadline) {
+            // ensure it's valid?
+          }
+
+          // Execute Mass Update
+          const affected = await Card.update(updates, { where });
+
+          results.push({
+            ok: true,
+            type: "bulk-update",
+            affectedCount: affected[0], // Sequelize update returns [count]
+            updates
+          });
+          continue;
+        }
+
         if (action.type === "update-checklist-item") {
           const cardTitle = action.cardTitle || action.title || action.nome;
           const itemTitle = action.itemTitle || action.item || action.texto;

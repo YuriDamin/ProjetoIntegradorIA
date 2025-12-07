@@ -61,23 +61,34 @@ export default function KanbanCard({ card, index, onClick }: CardProps) {
     deadlineDate = new Date(`${raw}T00:00:00`);
 
     if (!isNaN(deadlineDate.getTime())) {
-      deadlineText = deadlineDate.toLocaleDateString("pt-BR");
+      deadlineText = deadlineDate.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
-      const diffDays =
-        (deadlineDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24);
+      // Calculate diff in "Local Days"
+      // Force Today to midnight
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+
+      const diffTime = deadlineDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      // Math.ceil is safer for crossing DST or slight offsets if any
+
+      // Logic:
+      // < 0 : Atrasado (Fire)
+      // == 0 : Hoje (Warning)
+      // > 0 : Futuro (Calendar)
 
       if (diffDays < 0) {
         deadlineColor = "text-red-400";
         deadlineBadge = "bg-red-500/20 border-red-500/30";
-        deadlineIcon = "⚠️";
+        deadlineIcon = "🔥";
       } else if (diffDays === 0) {
         deadlineColor = "text-yellow-400";
         deadlineBadge = "bg-yellow-500/20 border-yellow-500/30";
-        deadlineIcon = "⏳";
-      } else if (diffDays <= 2) {
-        deadlineColor = "text-orange-400";
-        deadlineBadge = "bg-orange-500/20 border-orange-500/30";
-        deadlineIcon = "🔥";
+        deadlineIcon = "⚠️";
+      } else {
+        deadlineColor = "text-blue-400";
+        deadlineBadge = "bg-blue-500/20 border-blue-500/30";
+        deadlineIcon = "📅";
       }
     }
   }

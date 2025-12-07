@@ -14,7 +14,7 @@ async function ensureDefaultColumns() {
 module.exports = {
   async getBoard(req, res) {
     try {
-      await ensureDefaultColumns();
+      // await ensureDefaultColumns(); // Moved to startup for performance
 
       const columns = await Column.findAll({
         include: [
