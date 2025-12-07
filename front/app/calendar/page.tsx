@@ -652,120 +652,190 @@ export default function CalendarPage() {
             </div>
 
             {/* Cabeçalho dos dias da semana */}
-            <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-slate-200">
-              {weekDays.map((wd) => (
-                <div
-                  key={wd}
-                  className="py-2 bg-white/5 rounded-lg border border-white/10"
-                >
-                  {wd}
-                </div>
-              ))}
-            </div>
+            {/* Cabeçalho dos dias da semana (Only Grid) */}
+            {viewMode !== 'agenda' && (
+              <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-slate-200">
+                {weekDays.map((wd) => (
+                  <div
+                    key={wd}
+                    className="py-2 bg-white/5 rounded-lg border border-white/10"
+                  >
+                    {wd}
+                  </div>
+                ))}
+              </div>
+            )}
 
-            <div className="grid grid-cols-7 grid-rows-6 gap-2 flex-1 h-full min-h-0">
-              {monthMatrix.map((week, wi) =>
-                week.map((day, di) => {
+            {/* GRID VIEW (Month / Week) */}
+            {viewMode !== 'agenda' && (
+              <div className={`grid grid-cols-7 gap-2 flex-1 min-h-0 ${viewMode === 'week' ? 'grid-rows-1' : 'grid-rows-6'}`}>
+                {(viewMode === 'week' ? getWeekMatrix(currentDate) : monthMatrix).map((week, wi) =>
+                  week.map((day, di) => {
+                    const key = dateKey(day);
+                    const tasks = tasksByDate[key] || [];
+                    const isCurrentMonth = day.getMonth() === month;
+                    const isToday = key === todayKey;
+
+                    // Week view always shows full brightness
+                    const dim = !isCurrentMonth && viewMode === 'month';
+
+                    const baseClasses =
+                      "h-full rounded-xl p-1 border flex flex-col bg-white/5 transition-all cursor-pointer hover:bg-white/10";
+
+                    const borderColor = isToday
+                      ? "border-yellow-400"
+                      : "border-white/10";
+
+                    const bgColor = dim ? "bg-white/5 opacity-40 text-slate-500" : "bg-white/10 text-white";
+
+                    return (
+                      <Droppable droppableId={key} key={`${wi}-${di}`}>
+                        {(provided) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            onClick={() => openDayModal(day)}
+                            className={`${baseClasses} ${borderColor} ${bgColor}`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold px-1">
+                                {day.getDate()}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                {tasks.length > 0 && (
+                                  <span className="flex items-center justify-center bg-blue-500/20 border border-blue-500/30 rounded px-1.5 h-4 text-[9px] text-blue-200 font-bold">
+                                    {tasks.length}
+                                  </span>
+                                )}
+                                {isToday && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_5px_rgba(250,204,21,0.8)]" />
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1 mt-1 flex-1 relative overflow-hidden">
+                              {tasks.slice(0, viewMode === 'week' ? 10 : 3).map((task, index) => {
+                                // Task Dot Logic
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0);
+                                const d = new Date(`${key}T00:00:00`);
+                                let dot = "bg-emerald-500";
+                                if (d < today) dot = "bg-red-500";
+                                if (key === todayKey) dot = "bg-yellow-400";
+                                if (task.status === "done") dot = "bg-slate-500";
+
+                                return (
+                                  <Draggable
+                                    key={task.id}
+                                    draggableId={task.id}
+                                    index={index}
+                                  >
+                                    {(dragProvided, snapshot) => (
+                                      <div
+                                        ref={dragProvided.innerRef}
+                                        {...dragProvided.draggableProps}
+                                        {...dragProvided.dragHandleProps}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditingCard(task);
+                                        }}
+                                        className={`
+                                            flex items-center gap-2 px-2 py-1 text-[10px]
+                                            bg-black/40 border border-white/5 rounded-md
+                                            truncate transition-all hover:bg-white/10
+                                            ${snapshot.isDragging ? "z-50 shadow-xl scale-105 bg-slate-800" : ""}
+                                          `}
+                                      >
+                                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+                                        <span className="truncate opacity-90">{task.title}</span>
+                                      </div>
+                                    )}
+                                  </Draggable>
+                                );
+                              })}
+                              {provided.placeholder}
+                              {tasks.length > (viewMode === 'week' ? 10 : 3) && (
+                                <div className="text-[9px] text-center text-slate-500">
+                                  +{tasks.length - (viewMode === 'week' ? 10 : 3)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </Droppable>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            {/* AGENDA VIEW */}
+            {viewMode === 'agenda' && (
+              <div className="flex-1 overflow-y-auto space-y-2 pr-2 min-h-0 bg-black/20 rounded-xl p-2">
+                {getAgendaDays(currentDate).map((day) => {
                   const key = dateKey(day);
                   const tasks = tasksByDate[key] || [];
-                  const isCurrentMonth = day.getMonth() === month;
                   const isToday = key === todayKey;
 
-                  const baseClasses =
-                    "h-full rounded-xl p-1 border flex flex-col bg-white/5 transition-all cursor-pointer";
-
-                  const borderColor = isToday
-                    ? "border-yellow-400"
-                    : isCurrentMonth
-                      ? "border-white/15"
-                      : "border-white/5";
-
-                  const bgColor =
-                    isCurrentMonth ? "bg-white/10" : "bg-white/5 opacity-60";
-
                   return (
-                    <Droppable droppableId={key} key={`${wi}-${di}`}>
+                    <Droppable droppableId={key} key={key}>
                       {(provided) => (
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          onClick={() => openDayModal(day)}
-                          className={`${baseClasses} ${borderColor} ${bgColor}`}
+                          className={`
+                                   flex gap-4 p-4 rounded-xl border transition-colors min-h-[80px]
+                                   ${isToday ? 'bg-yellow-400/5 border-yellow-400/30' : 'bg-white/5 border-white/5 hover:bg-white/10'}
+                                `}
                         >
-                          <div className="flex items-center justify-between mb-1">
-                            <span
-                              className={`text-xs font-semibold ${isCurrentMonth ? "text-white" : "text-slate-400"
-                                }`}
-                            >
-                              {day.getDate()}
+                          <div className="flex flex-col items-center justify-center w-16 flex-shrink-0 border-r border-white/10 pr-4">
+                            <span className="text-2xl font-bold text-slate-200">{day.getDate()}</span>
+                            <span className="text-[10px] uppercase tracking-wider text-slate-400">
+                              {weekDays[day.getDay()]}
                             </span>
-                            <div className="flex items-center gap-1">
-                              {tasks.length > 1 && (
-                                <span className="flex items-center justify-center bg-white/20 border border-white/20 rounded-md px-1.5 py-0.5 text-[9px] text-white font-bold">
-                                  +{tasks.length - 1}
-                                </span>
-                              )}
-                              {isToday && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-yellow-400/20 text-yellow-300 border border-yellow-400/40">
-                                  Hoje
-                                </span>
-                              )}
-                            </div>
                           </div>
 
-                          <div className="space-y-1 mt-1 flex-1 relative">
-                            {tasks.slice(0, 1).map((task, index) => {
-                              const today = new Date();
-                              today.setHours(0, 0, 0, 0);
-                              const d = new Date(`${key}T00:00:00`);
-
-                              let dot = "bg-emerald-500";
-                              if (d < today) dot = "bg-red-500";
-                              if (key === todayKey) dot = "bg-yellow-400";
-                              if (task.status === "done") dot = "bg-slate-500";
-
-                              return (
-                                <Draggable
-                                  key={task.id}
-                                  draggableId={task.id}
-                                  index={index}
-                                >
-                                  {(dragProvided, snapshot) => (
-                                    <div
-                                      ref={dragProvided.innerRef}
-                                      {...dragProvided.draggableProps}
-                                      {...dragProvided.dragHandleProps}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setEditingCard(task);
-                                      }}
-                                      className={`
-                                          flex items-center gap-2 px-2 py-1 text-[11px]
-                                          bg-black/30 border border-white/10 rounded-lg
-                                          truncate transition-all hover:bg-white/10
-                                          ${snapshot.isDragging
-                                          ? "scale-105 bg-white/20 shadow-lg"
-                                          : ""
-                                        }
-                                        `}
-                                    >
-                                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
-                                      <span className="truncate">{task.title}</span>
+                          <div className="flex-1 space-y-2">
+                            {tasks.length === 0 && (
+                              <div className="text-xs text-slate-600 italic py-2">Sem tarefas</div>
+                            )}
+                            {tasks.map((task, index) => (
+                              <Draggable key={task.id} draggableId={task.id} index={index}>
+                                {(dragProvided) => (
+                                  <div
+                                    ref={dragProvided.innerRef}
+                                    {...dragProvided.draggableProps}
+                                    {...dragProvided.dragHandleProps}
+                                    onClick={() => setEditingCard(task)}
+                                    className="flex items-center justify-between p-2 bg-black/20 rounded-lg border border-white/5 hover:border-white/20 group cursor-pointer"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <div className={`w-2 h-2 rounded-full ${task.status === 'done' ? 'bg-green-500' : 'bg-blue-500'}`} />
+                                      <span className="text-sm text-slate-200 group-hover:text-white">{task.title}</span>
                                     </div>
-                                  )}
-                                </Draggable>
-                              );
-                            })}
-
+                                    <div className="flex items-center gap-2">
+                                      {task.priority && (
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-slate-400">
+                                          {task.priority}
+                                        </span>
+                                      )}
+                                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-slate-500">
+                                        {task.columnId}
+                                      </span>
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
                             {provided.placeholder}
                           </div>
                         </div>
                       )}
                     </Droppable>
                   );
-                })
-              )}
-            </div>
+                })}
+              </div>
+            )}
           </div>
         </DragDropContext>
       </div>

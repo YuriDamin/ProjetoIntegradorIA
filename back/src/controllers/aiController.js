@@ -96,6 +96,12 @@ O formato SEMPRE deve ser:
     - Se HOUVER confirmação:
       - Gere a ação correspondente.
 
+- Se o usuário pedir para criar VÁRIAS tarefas de uma vez (ex: "crie 4 tarefas para amanhã"):
+  - Gere ações "create-card" separadas para CADA tarefa.
+  - Se o usuário não der nomes, invente nomes genéricos ou numerados (ex: "Tarefa 1", "Tarefa 2", ...).
+  - Nunca agrupe em uma única ação.
+  - Exemplo: "Crie 3 tarefas" -> Gerar 3 objetos { "type": "create-card", "title": "Tarefa 1" ... }, etc.
+
 - "bulk-update":
   - Use quando o usuário quiser alterar "todas", "tudo", "os cards".
   - Estrutura: { "type": "bulk-update", "updates": { "deadline": "YYYY-MM-DD", "priority": "Alta" } }

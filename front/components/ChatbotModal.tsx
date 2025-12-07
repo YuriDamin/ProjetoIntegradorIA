@@ -186,9 +186,16 @@ export default function ChatbotModal({ open, onClose }: ChatbotModalProps) {
         }
 
         if (action.type === "bulk-update") {
-          summary += `🔧 <b>${action.updatedCount} cards atualizados!</b><br>`;
-          summary += `<pre>${JSON.stringify(action.where, null, 2)}</pre>`;
-          summary += `<pre>${JSON.stringify(action.set, null, 2)}</pre><br>`;
+          summary += `🔧 <b>${action.updatedCount ?? action.affectedCount} cards atualizados!</b><br>`;
+
+          const updates = action.updates || action.set || {};
+          if (Object.keys(updates).length > 0) {
+            summary += `<i>Alterações:</i><br>`;
+            Object.entries(updates).forEach(([key, val]) => {
+              summary += `• ${key}: <b>${val}</b><br>`;
+            });
+          }
+          summary += `<br>`;
         }
 
         if (action.type === "chat-response") {

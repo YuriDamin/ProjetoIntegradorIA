@@ -261,21 +261,21 @@ module.exports = {
         }
 
         if (action.type === "bulk-update") {
-          const updates = action.updates || {};
-          const where = {}; // Default: All cards
+          // Merge checks: if action has "updates", use Block 1 logic. 
+          // If action has "set/where" but NOT "updates", we might fall through or handle here.
+          // AI prompt uses "updates".
 
-          // Logic to apply updates to ALL cards (or filtered if we implemented filters)
-          // For now, "all" is the requested scope ("todas as tarefas")
+          const updates = action.updates || action.set || {};
+          const where = action.where || {};
 
-          // Safety: Don't allow empty updates
           if (Object.keys(updates).length === 0) {
             results.push({ ok: false, type: "bulk-update", error: "Nenhuma alteração definida" });
             continue;
           }
 
-          if (updates.deadline) {
-            // ensure it's valid?
-          }
+          // Handle specific field parsers if needed (priority/status)
+          if (updates.priority) updates.priority = mapPriority(updates.priority);
+          if (updates.status) updates.status = mapStatus(updates.status);
 
           // Execute Mass Update
           const affected = await Card.update(updates, { where });
@@ -283,7 +283,7 @@ module.exports = {
           results.push({
             ok: true,
             type: "bulk-update",
-            affectedCount: affected[0], // Sequelize update returns [count]
+            updatedCount: affected[0], // Fix: use updatedCount to match Frontend
             updates
           });
           continue;
