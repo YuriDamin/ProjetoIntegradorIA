@@ -30,7 +30,7 @@ const { Column } = require("./models");
 
 async function startServer() {
   try {
-    await sequelize.sync();
+    await sequelize.sync({ alter: true });
     console.log("📦 Banco sincronizado com sucesso");
 
     // Seed columns if empty

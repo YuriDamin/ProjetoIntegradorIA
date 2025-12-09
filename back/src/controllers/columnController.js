@@ -16,10 +16,16 @@ module.exports = {
     try {
       // await ensureDefaultColumns(); // Moved to startup for performance
 
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+
       const columns = await Column.findAll({
         include: [
           {
             model: Card,
+            where: { userId: req.user.id },
+            required: false, // Important: Still return columns even if they have no cards for this user
             include: [Checklist],
           },
         ],

@@ -20,6 +20,7 @@ const Card = sequelize.define("Card", {
   assignee: DataTypes.STRING,
   labels: DataTypes.ARRAY(DataTypes.STRING),
   columnId: DataTypes.STRING,
+  userId: DataTypes.UUID,
 });
 
 module.exports = Card;

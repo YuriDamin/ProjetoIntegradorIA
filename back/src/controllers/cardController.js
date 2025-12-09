@@ -111,6 +111,7 @@ module.exports = {
         assignee: null,
         labels: [],
         columnId,
+        userId: req.user.id,
       });
 
       return res.status(201).json({
@@ -132,8 +133,8 @@ module.exports = {
       const { id } = req.params;
       const body = req.body;
 
-      const card = await Card.findByPk(id, { include: [Checklist] });
-      if (!card) return res.status(404).json({ error: "Card não encontrado" });
+      const card = await Card.findOne({ where: { id, userId: req.user.id }, include: [Checklist] });
+      if (!card) return res.status(404).json({ error: "Card não encontrado ou acesso negado" });
 
       if (body.priority) {
         body.priority = normalizePriority(body.priority);
@@ -199,7 +200,7 @@ module.exports = {
       const { id } = req.params;
 
       await Checklist.destroy({ where: { cardId: id } });
-      await Card.destroy({ where: { id } });
+      await Card.destroy({ where: { id, userId: req.user.id } });
 
       return res.json({ message: "Card removido com sucesso" });
 
@@ -214,9 +215,9 @@ module.exports = {
       const { id } = req.params;
       const { toColumn } = req.body;
 
-      const card = await Card.findByPk(id);
+      const card = await Card.findOne({ where: { id, userId: req.user.id } });
       if (!card)
-        return res.status(404).json({ error: "Card não encontrado" });
+        return res.status(404).json({ error: "Card não encontrado ou acesso negado" });
 
       const col = await Column.findByPk(toColumn);
       if (!col)

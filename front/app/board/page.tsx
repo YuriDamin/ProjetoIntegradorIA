@@ -56,10 +56,22 @@ export default function BoardPage() {
     try {
       setLoading(true);
       const res = await fetch("/api/columns", { credentials: "include" });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          // 401 means token is invalid/expired. Clear it to prevent middleware redirect loop.
+          document.cookie = "token=; path=/; max-age=0";
+          window.location.href = "/login";
+          return;
+        }
+        throw new Error("Falha ao carregar dados do board");
+      }
+
       const json = (await res.json()) as BoardData;
       setData(json);
     } catch (err) {
       console.error("Erro ao carregar board:", err);
+      // Optional: Start empty or show error UI
     } finally {
       setLoading(false);
     }
