@@ -9,6 +9,8 @@ import EditCardModal from "@/components/EditCardModal";
 import ChatbotButton from "@/components/ChatbotButton";
 import Topbar from "@/components/Topbar";
 import SearchResultsModal from "@/components/SearchResultsModal";
+import WelcomeScreen from "@/components/WelcomeScreen";
+import { Loader2 } from "lucide-react";
 
 import { BoardData, Card, Column, Status } from "@/types/kanban";
 
@@ -321,65 +323,66 @@ export default function BoardPage() {
     window.location.href = "/login";
   }
 
-  if (loading || !data) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-white text-xl">
-        Carregando board...
-      </div>
-    );
-  }
-
   return (
     <>
-      <div className="h-screen overflow-hidden bg-gradient-to-br from-[#050816] via-[#0A1224] to-[#020617] flex flex-col">
-        <div className="flex-shrink-0 p-6 pb-0">
-          <Topbar
-            userName={userName}
-            onLogout={handleLogout}
-            onSearchClick={handleSearchClick}
-            onStatClick={handleStatClick}
-          />
+      <WelcomeScreen userName={userName} />
+
+      {(loading || !data) ? (
+        <div className="min-h-screen flex items-center justify-center text-white text-xl">
+          <Loader2 className="animate-spin mr-3" />
+          Carregando board...
         </div>
+      ) : (
+        <div className="h-screen overflow-hidden bg-gradient-to-br from-[#050816] via-[#0A1224] to-[#020617] flex flex-col">
+          <div className="flex-shrink-0 p-6 pb-0">
+            <Topbar
+              userName={userName}
+              onLogout={handleLogout}
+              onSearchClick={handleSearchClick}
+              onStatClick={handleStatClick}
+            />
+          </div>
 
-        <div className="flex-1 min-h-0 overflow-x-hidden">
-          <DragDropContext onDragEnd={onDragEnd}>
-            <div className="flex h-full gap-8 p-6 w-full items-start justify-center">
-              {data.columnOrder.map((colId) => (
-                <div key={colId} className="h-full flex-1">
-                  <KanbanColumn
-                    column={data.columns[colId]}
-                    cards={data.columns[colId].cards}
-                    onAddCard={handleAddCard}
-                    onCardClick={onCardClick}
-                  />
-                </div>
-              ))}
-            </div>
-          </DragDropContext>
+          <div className="flex-1 min-h-0 overflow-x-hidden">
+            <DragDropContext onDragEnd={onDragEnd}>
+              <div className="flex h-full gap-8 p-6 w-full items-start justify-center">
+                {data.columnOrder.map((colId) => (
+                  <div key={colId} className="h-full flex-1">
+                    <KanbanColumn
+                      column={data.columns[colId]}
+                      cards={data.columns[colId].cards}
+                      onAddCard={handleAddCard}
+                      onCardClick={onCardClick}
+                    />
+                  </div>
+                ))}
+              </div>
+            </DragDropContext>
 
-          <EditCardModal
-            open={modalOpen}
-            card={selectedCard}
-            onClose={() => setModalOpen(false)}
-            onSave={handleSaveCard}
-            onDelete={handleDeleteCard}
-          />
+            <EditCardModal
+              open={modalOpen}
+              card={selectedCard}
+              onClose={() => setModalOpen(false)}
+              onSave={handleSaveCard}
+              onDelete={handleDeleteCard}
+            />
 
-          <SearchResultsModal
-            open={searchModalOpen}
-            onClose={() => setSearchModalOpen(false)}
-            title={searchTitle}
-            cards={searchResults}
-            onCardClick={(card) => {
-              setSearchModalOpen(false);
-              // Find column
-              const colId = card.columnId;
-              onCardClick(card, colId);
-            }}
-            onSearchChange={handleSearch}
-          />
+            <SearchResultsModal
+              open={searchModalOpen}
+              onClose={() => setSearchModalOpen(false)}
+              title={searchTitle}
+              cards={searchResults}
+              onCardClick={(card) => {
+                setSearchModalOpen(false);
+                // Find column
+                const colId = card.columnId;
+                onCardClick(card, colId);
+              }}
+              onSearchChange={handleSearch}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       <ChatbotButton />
     </>

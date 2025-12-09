@@ -14,6 +14,7 @@ export default function RegisterPage() {
   const [confirmPass, setConfirmPass] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successModal, setSuccessModal] = useState(false);
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -45,8 +46,10 @@ export default function RegisterPage() {
         return;
       }
 
-      alert("Usuário criado com sucesso!");
-      router.push("/login");
+      setSuccessModal(true);
+      setTimeout(() => {
+        router.push("/login");
+      }, 3000);
 
     } catch (err) {
       console.error(err);
@@ -58,6 +61,29 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#050816] via-[#050f25] to-[#071a33] p-4">
+      {/* Success Modal */}
+      {successModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#0F1A2F] border border-emerald-500/30 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
+            <div className="size-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Loader2 className="text-emerald-400 size-8 animate-pulse" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">
+              Conta criada com sucesso!
+            </h2>
+            <p className="text-slate-400 text-sm mb-6">
+              Você será redirecionado para o login em instantes...
+            </p>
+            <button
+              onClick={() => router.push("/login")}
+              className="w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
+            >
+              Ir para Login agora
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-[#0F1A2F]/90 border border-white/10 rounded-2xl shadow-2xl p-10 w-full max-w-md">
 
         <h1 className="text-white text-2xl font-semibold text-center mb-2">
@@ -68,7 +94,7 @@ export default function RegisterPage() {
         </p>
 
         <form onSubmit={handleRegister} className="space-y-5">
-          
+
           <div>
             <label className="text-slate-300 text-sm">Nome</label>
             <input

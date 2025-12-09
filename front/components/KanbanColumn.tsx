@@ -70,8 +70,11 @@ export default function KanbanColumn({
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-3">
-        <h2 className="text-white/80 font-bold text-base tracking-wide uppercase">
+        <h2 className="text-white/80 font-bold text-base tracking-wide uppercase flex items-center gap-2">
           {column.title}
+          <span className="text-xs text-slate-500 font-medium">
+            {cards.length} cards
+          </span>
         </h2>
 
         {/* Sort Controls */}
