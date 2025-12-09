@@ -51,10 +51,11 @@ export default function BoardPage() {
   }, []);
 
   // 🔹 Carregar dados do board
-  async function loadBoard() {
-    console.log("🔥 Carregando dados do board...");
+  async function loadBoard(isBackground = false) {
+    console.log("🔥 Carregando dados do board...", { isBackground });
     try {
-      setLoading(true);
+      if (!isBackground) setLoading(true);
+
       const res = await fetch("/api/columns", { credentials: "include" });
 
       if (!res.ok) {
@@ -89,7 +90,7 @@ export default function BoardPage() {
 
     socket.on("board-updated", () => {
       if (window.chatbotOpen) return;
-      loadBoard();
+      loadBoard(true); // Background update
     });
 
     return () => {
@@ -101,7 +102,16 @@ export default function BoardPage() {
   useEffect(() => {
     function handleChatbotUpdate() {
       console.log("🔥 EVENTO RECEBIDO DO CHATBOT");
-      loadBoard();
+      // Show indicator
+      const el = document.getElementById("ai-indicator");
+      if (el) el.classList.add("ai-updating");
+
+      loadBoard(true).then(() => {
+        // Hide after short delay
+        setTimeout(() => {
+          if (el) el.classList.remove("ai-updating");
+        }, 2000);
+      });
     }
 
     window.addEventListener("board-update", handleChatbotUpdate);
@@ -397,6 +407,18 @@ export default function BoardPage() {
       )}
 
       <ChatbotButton />
+
+      {/* AI Update Indicator */}
+      <div id="ai-indicator" className="fixed bottom-24 right-6 bg-indigo-600/90 text-white px-4 py-2 rounded-full shadow-lg backdrop-blur text-sm font-medium flex items-center gap-2 translate-y-20 opacity-0 transition-all duration-300">
+        <Loader2 className="animate-spin" size={16} />
+        IA atualizando quadro...
+      </div>
+      <style jsx>{`
+        .ai-updating {
+          transform: translateY(0) !important;
+          opacity: 1 !important;
+        }
+      `}</style>
     </>
   );
 }

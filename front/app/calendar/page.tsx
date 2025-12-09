@@ -13,6 +13,8 @@ import {
   Draggable,
   DropResult,
 } from "@hello-pangea/dnd";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+
 
 function formatMonthYear(date: Date) {
   return date.toLocaleDateString("pt-BR", {
@@ -101,8 +103,23 @@ export default function CalendarPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<Card[]>([]);
   const [selectedDateLabel, setSelectedDateLabel] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
 
   const [editingCard, setEditingCard] = useState<Card | null>(null);
+  const [selectedDateKey, setSelectedDateKey] = useState("");
+  // Confirm Move State
+  const [pendingMove, setPendingMove] = useState<{
+    cardId: string;
+    newDate: string; // YYYY-MM-DD
+    newDateLabel: string;
+    oldDeadline: string | Date | null | undefined;
+    sourceId: string;
+    originalColumnId: string;
+  } | null>(null);
+
+
+  // Stats Refresher
+  const [statsTick, setStatsTick] = useState(0);
 
   useEffect(() => {
     const hasToken = document.cookie.includes("token=");
@@ -120,6 +137,8 @@ export default function CalendarPage() {
         setUserName("Usuário");
       }
     }
+    // Initial load triggers stats
+    setStatsTick(prev => prev + 1);
   }, []);
 
   async function loadBoard() {
@@ -128,6 +147,7 @@ export default function CalendarPage() {
       const res = await fetch("/api/columns", { credentials: "include" });
       const json = (await res.json()) as BoardData;
       setBoard(json);
+      setStatsTick(prev => prev + 1);
     } catch (err) {
       console.error("Erro ao carregar board (calendar):", err);
     } finally {
@@ -321,6 +341,7 @@ export default function CalendarPage() {
 
   function openDayModal(day: Date) {
     const key = dateKey(day);
+    setSelectedDateKey(key);
     const list = tasksByDate[key] ?? [];
 
     setSelectedTasks(list);
@@ -340,61 +361,129 @@ export default function CalendarPage() {
     window.location.href = "/login";
   }
 
+  // DnD Handlers
+  function onDragStart() {
+    // Always retract sidebar on drag start to reveal calendar
+    setIsDragging(true);
+  }
+
   async function handleDragEnd(result: DropResult) {
+    setIsDragging(false);
     const { destination, source, draggableId } = result;
 
     if (!destination || !board) return;
 
-    const fromDate = source.droppableId;
+    let fromDate = source.droppableId;
     const toDate = destination.droppableId;
+
+    if (fromDate.startsWith("SIDEBAR_")) {
+      fromDate = fromDate.replace("SIDEBAR_", "");
+    }
 
     if (fromDate === toDate) return;
 
-    // Find card column
+    // Find card column and object
     let foundColumnId: string | null = null;
+    let foundCard: Card | null = null;
+
     for (const colId of board.columnOrder) {
       const col = board.columns[colId];
       const found = col.cards.find((c) => c.id === draggableId);
       if (found) {
         foundColumnId = colId;
+        foundCard = found;
         break;
       }
     }
-    if (!foundColumnId) return;
+    if (!foundColumnId || !foundCard) return;
 
     // Logic: if toDate === "unscheduled", deadline = null
-    const newDeadline = toDate === "unscheduled" ? null : toDate;
+    const newDeadlineStr = toDate === "unscheduled" ? null : toDate;
 
+    // CONFIRMATION STEP
+    const dateObj = newDeadlineStr ? new Date(newDeadlineStr + "T12:00:00") : null;
+    const label = dateObj
+      ? dateObj.toLocaleDateString("pt-BR", { day: '2-digit', month: 'long', year: 'numeric' })
+      : "Sem Data";
+
+    // Optimistic Update First (Visual feedback)
+    updateBoardState(draggableId, foundColumnId, newDeadlineStr);
+
+    // Remove from sidebar list visually if dragged out
+    if (modalOpen && source.droppableId.startsWith("SIDEBAR_")) {
+      setSelectedTasks(prev => prev.filter(c => c.id !== draggableId));
+    }
+
+    // Set Pending State for Dialog
+    setPendingMove({
+      cardId: draggableId,
+      newDate: newDeadlineStr || "",
+      newDateLabel: label,
+      oldDeadline: foundCard.deadline,
+      sourceId: source.droppableId,
+      originalColumnId: foundColumnId
+    });
+  }
+
+  async function handleConfirmMove() {
+    if (!pendingMove) return;
+    const { cardId, newDate } = pendingMove;
+
+    // API Call to finalize
     try {
-      await fetch(`/api/cards/${draggableId}`, {
+      await fetch(`/api/cards/${cardId}`, {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          deadline: newDeadline,
+          deadline: newDate,
         }),
       });
+      // Update local state is already done optimistically
     } catch (err) {
-      console.error("Erro ao atualizar deadline:", err);
+      console.error("Erro ao confirmar movimento:", err);
+      handleCancelMove(); // Revert on error
     }
+    setPendingMove(null);
+  }
 
+  function handleCancelMove() {
+    if (!pendingMove) return;
+    const { cardId, oldDeadline, originalColumnId, sourceId } = pendingMove;
+
+    // Revert Board State
+    // Convert oldDeadline to string YYYY-MM-DD if needed, or null
+    let oldDeadlineStr: string | null = null;
+    if (typeof oldDeadline === 'string') oldDeadlineStr = oldDeadline.substring(0, 10);
+    else if (oldDeadline instanceof Date) oldDeadlineStr = dateKey(oldDeadline);
+
+    updateBoardState(cardId, originalColumnId, oldDeadlineStr);
+
+    // Restore to sidebar if needed
+    if (sourceId.startsWith("SIDEBAR_")) {
+      // We need to find the card object again to add it back to selectedTasks
+      const col = board?.columns[originalColumnId];
+      const card = col?.cards.find(c => c.id === cardId);
+      if (card) {
+        setSelectedTasks(prev => [...prev, card]);
+      }
+    }
+    setPendingMove(null);
+  }
+
+  // Helper to update board locally
+  function updateBoardState(cardId: string, columnId: string, newDeadline: string | null) {
     setBoard((prev) => {
-      if (!prev || !foundColumnId) return prev;
-
-      const col = prev.columns[foundColumnId];
-
-      const updatedColumn = {
-        ...col,
-        cards: col.cards.map((c) =>
-          c.id === draggableId ? { ...c, deadline: newDeadline } : c
-        ),
-      };
-
+      if (!prev) return prev;
+      const col = prev.columns[columnId];
+      const updatedCards = col.cards.map((c) =>
+        c.id === cardId ? { ...c, deadline: newDeadline } : c
+      );
       return {
         ...prev,
         columns: {
           ...prev.columns,
-          [foundColumnId]: updatedColumn,
+          [columnId]: { ...col, cards: updatedCards },
         },
       };
     });
@@ -431,13 +520,14 @@ export default function CalendarPage() {
           onLogout={handleLogout}
           onSearchClick={handleSearchClick}
           onStatClick={handleStatClick}
+          refreshTrigger={statsTick}
         />
       </div>
 
       {/* Main Layout Grid: Full Width now */}
       <div className="flex-1 w-full px-6 mt-4 pb-6 min-h-0 flex flex-col lg:flex-row gap-6 text-white overflow-hidden">
 
-        <DragDropContext onDragEnd={handleDragEnd}>
+        <DragDropContext onDragStart={onDragStart} onDragEnd={handleDragEnd}>
           {/* SIDEBAR: Filters + Unscheduled */}
           <div className="w-full lg:w-72 flex-shrink-0 flex flex-col gap-4">
 
@@ -690,78 +780,85 @@ export default function CalendarPage() {
 
                     return (
                       <Droppable droppableId={key} key={`${wi}-${di}`}>
-                        {(provided) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.droppableProps}
-                            onClick={() => openDayModal(day)}
-                            className={`${baseClasses} ${borderColor} ${bgColor}`}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-semibold px-1">
-                                {day.getDate()}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                {tasks.length > 0 && (
-                                  <span className="flex items-center justify-center bg-blue-500/20 border border-blue-500/30 rounded px-1.5 h-4 text-[9px] text-blue-200 font-bold">
-                                    {tasks.length}
-                                  </span>
-                                )}
-                                {isToday && (
-                                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_5px_rgba(250,204,21,0.8)]" />
-                                )}
+                        {(provided, snapshot) => {
+                          const isOver = snapshot.isDraggingOver;
+                          const bgColor = isOver
+                            ? "bg-blue-600/20 border-blue-500 ring-2 ring-blue-500/50 scale-[1.02] z-10 shadow-xl"
+                            : (dim ? "bg-white/5 opacity-40 text-slate-500" : "bg-white/10 text-white");
+
+                          return (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              onClick={() => openDayModal(day)}
+                              className={`${baseClasses} ${borderColor} ${bgColor}`}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-semibold px-1">
+                                  {day.getDate()}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  {tasks.length > 0 && (
+                                    <span className="flex items-center justify-center bg-blue-500/20 border border-blue-500/30 rounded px-1.5 h-4 text-[9px] text-blue-200 font-bold">
+                                      {tasks.length}
+                                    </span>
+                                  )}
+                                  {isToday && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 shadow-[0_0_5px_rgba(250,204,21,0.8)]" />
+                                  )}
+                                </div>
                               </div>
-                            </div>
 
-                            <div className="space-y-1 mt-1 flex-1 relative overflow-hidden">
-                              {tasks.slice(0, viewMode === 'week' ? 10 : 3).map((task, index) => {
-                                // Task Dot Logic
-                                const today = new Date();
-                                today.setHours(0, 0, 0, 0);
-                                const d = new Date(`${key}T00:00:00`);
-                                let dot = "bg-emerald-500";
-                                if (d < today) dot = "bg-red-500";
-                                if (key === todayKey) dot = "bg-yellow-400";
-                                if (task.status === "done") dot = "bg-slate-500";
+                              <div className="space-y-1 mt-1 flex-1 relative overflow-hidden">
+                                {tasks.slice(0, viewMode === 'week' ? 10 : 3).map((task, index) => {
+                                  // Task Dot Logic
+                                  const today = new Date();
+                                  today.setHours(0, 0, 0, 0);
+                                  const d = new Date(`${key}T00:00:00`);
+                                  let dot = "bg-emerald-500";
+                                  if (d < today) dot = "bg-red-500";
+                                  if (key === todayKey) dot = "bg-yellow-400";
+                                  if (task.status === "done") dot = "bg-slate-500";
 
-                                return (
-                                  <Draggable
-                                    key={task.id}
-                                    draggableId={task.id}
-                                    index={index}
-                                  >
-                                    {(dragProvided, snapshot) => (
-                                      <div
-                                        ref={dragProvided.innerRef}
-                                        {...dragProvided.draggableProps}
-                                        {...dragProvided.dragHandleProps}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setEditingCard(task);
-                                        }}
-                                        className={`
+                                  return (
+                                    <Draggable
+                                      key={task.id}
+                                      draggableId={task.id}
+                                      index={index}
+                                    >
+                                      {(dragProvided, snapshot) => (
+                                        <div
+                                          ref={dragProvided.innerRef}
+                                          {...dragProvided.draggableProps}
+                                          {...dragProvided.dragHandleProps}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingCard(task);
+                                          }}
+                                          className={`
                                             flex items-center gap-2 px-2 py-1 text-[10px]
                                             bg-black/40 border border-white/5 rounded-md
                                             truncate transition-all hover:bg-white/10
                                             ${snapshot.isDragging ? "z-50 shadow-xl scale-105 bg-slate-800" : ""}
                                           `}
-                                      >
-                                        <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
-                                        <span className="truncate opacity-90">{task.title}</span>
-                                      </div>
-                                    )}
-                                  </Draggable>
-                                );
-                              })}
-                              {provided.placeholder}
-                              {tasks.length > (viewMode === 'week' ? 10 : 3) && (
-                                <div className="text-[9px] text-center text-slate-500">
-                                  +{tasks.length - (viewMode === 'week' ? 10 : 3)}
-                                </div>
-                              )}
+                                        >
+                                          <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
+                                          <span className="truncate opacity-90">{task.title}</span>
+                                        </div>
+                                      )}
+                                    </Draggable>
+                                  );
+                                })}
+                                {provided.placeholder}
+                                {tasks.length > (viewMode === 'week' ? 10 : 3) && (
+                                  <div className="text-[9px] text-center text-slate-500">
+                                    +{tasks.length - (viewMode === 'week' ? 10 : 3)}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          )
+                        }}
                       </Droppable>
                     );
                   })
@@ -837,19 +934,20 @@ export default function CalendarPage() {
               </div>
             )}
           </div>
+          <CalendarDayModal
+            open={modalOpen}
+            onClose={() => setModalOpen(false)}
+            dateLabel={selectedDateLabel}
+            tasks={selectedTasks}
+            droppableId={`SIDEBAR_${selectedDateKey}`}
+            isDragging={isDragging}
+            onTaskClick={(task) => {
+              setModalOpen(false);
+              setEditingCard(task);
+            }}
+          />
         </DragDropContext>
       </div>
-
-      <CalendarDayModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        dateLabel={selectedDateLabel}
-        tasks={selectedTasks}
-        onTaskClick={(task) => {
-          setModalOpen(false); // Close day modal first
-          setEditingCard(task); // Open edit modal
-        }}
-      />
 
       <EditCardModal
         open={!!editingCard}
@@ -870,6 +968,31 @@ export default function CalendarPage() {
         }}
         onSearchChange={handleSearch}
       />
+      <Dialog open={!!pendingMove} onOpenChange={() => handleCancelMove()}>
+        <DialogContent className="bg-[#1e293b] border-white/10 text-white">
+          <DialogHeader>
+            <DialogTitle>Confirmar Reagendamento</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Mover tarefa para <strong>{pendingMove?.newDateLabel}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <button
+              onClick={handleCancelMove}
+              className="px-4 py-2 rounded text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleConfirmMove}
+              className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold transition-colors"
+            >
+              Confirmar
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <ChatbotButton />
     </div>
   );

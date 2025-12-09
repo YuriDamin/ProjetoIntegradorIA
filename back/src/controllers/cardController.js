@@ -49,7 +49,8 @@ module.exports = {
             { status: { [Op.ne]: 'done' } },
             { status: { [Op.is]: null } }
           ],
-          deadline: { [Op.not]: null } // Explicitly exclude tasks with no deadline
+          deadline: { [Op.not]: null }, // Explicitly exclude tasks with no deadline
+          userId: req.user.id, // Filter by user
         }
       });
 

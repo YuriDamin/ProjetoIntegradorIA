@@ -8,10 +8,18 @@ interface WelcomeScreenProps {
 }
 
 export default function WelcomeScreen({ userName }: WelcomeScreenProps) {
-    const [show, setShow] = useState(true);
+    const [show, setShow] = useState(false);
     const [greeting, setGreeting] = useState("Bem-vindo");
 
     useEffect(() => {
+        // Check if already shown in this session
+        if (sessionStorage.getItem("welcomeShown")) {
+            return;
+        }
+
+        // Mark as shown and SHOW modal
+        sessionStorage.setItem("welcomeShown", "true");
+        setShow(true);
         // Determine greeting based on time of day
         const hour = new Date().getHours();
         if (hour >= 5 && hour < 12) setGreeting("Bom dia");

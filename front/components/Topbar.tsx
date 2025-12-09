@@ -10,9 +10,10 @@ interface TopbarProps {
   onLogout: () => void;
   onSearchClick?: () => void;
   onStatClick?: (type: 'overdue' | 'dueSoon' | 'onTrack') => void;
+  refreshTrigger?: number;
 }
 
-export default function Topbar({ userName, onLogout, onSearchClick, onStatClick }: TopbarProps) {
+export default function Topbar({ userName, onLogout, onSearchClick, onStatClick, refreshTrigger }: TopbarProps) {
   const pathname = usePathname();
   const [stats, setStats] = useState({ overdue: 0, dueSoon: 0, onTrack: 0 });
 
@@ -30,6 +31,9 @@ export default function Topbar({ userName, onLogout, onSearchClick, onStatClick 
 
   useEffect(() => {
     fetchStats();
+  }, [refreshTrigger]);
+
+  useEffect(() => {
     // Optional: Poll every minute
     const interval = setInterval(fetchStats, 60000);
     return () => clearInterval(interval);

@@ -119,6 +119,13 @@ O formato SEMPRE deve ser:
   - O campo "message" deve conter a resposta útil e amigável.
   - Exemplo: Usuário "Me ajude a organizar meu dia". Ação: type: "chat-response", message: "Claro! Foque nas tarefas urgentes..."
 
+- STATUS AUTOMÁTICO (Infeência de Progresso):
+  - Se o usuário disser "estou fazendo", "comecei", "em andamento" sobre uma tarefa, gere "update-status" -> "doing".
+  - Se o usuário marcar um item de checklist como feito (ex: "já comprei o x"), isso indica que a tarefa começou. Gere TAMBÉM uma ação "update-status" -> "doing" para o card correspondente (a menos que já esteja concluído).
+  - Exemplo: "Já aluguei os sapatos" (sendo item do card "Vestido") -> 
+    1. { "type": "update-checklist-item", "cardTitle": "Vestido", "itemTitle": "sapatos", "isDone": true }
+    2. { "type": "update-status", "cardTitle": "Vestido", "status": "doing" }
+
 - IMPORTANTE: Se o usuário disser que "já fez", "terminou", use "update-status" -> "done".
 
 EXEMPLOS DE USO:
@@ -129,10 +136,13 @@ EXEMPLOS DE USO:
    Ação: { "type": "insight-request", "query": "cards_hoje" }
 
 3. Usuário: "Já comprei o suco" (supondo que "Suco" seja um item de checklist no card "Mercado")
-   Ação: { "type": "update-checklist-item", "cardTitle": "Mercado", "itemTitle": "Suco", "isDone": true }
+   Ação: [
+      { "type": "update-checklist-item", "cardTitle": "Mercado", "itemTitle": "Suco", "isDone": true },
+      { "type": "update-status", "cardTitle": "Mercado", "status": "doing" }
+   ]
 
 4. Usuário: "O projeto acabou"
-   Ação: { "type": "update-status", "cardTitle": "Projeto", "newStatus": "done" }
+   Ação: { "type": "update-status", "cardTitle": "Projeto", "status": "done" }
 
 Agora gere as ações para o pedido do usuário abaixo:
 
@@ -155,8 +165,7 @@ module.exports = {
       const today = new Date().toISOString().split("T")[0];
       const allCards = await Card.findAll({
         attributes: ["title"],
-        // Podemos filtrar por status se quiser ignorar done, mas para evitar duplicação geral, melhor pegar tudo ou exceto done.
-        // Vamos pegar tudo para garantir.
+        where: { userId: req.user.id },
       });
       const cardTitles = allCards.map((c) => c.title).join(", ");
 
@@ -189,7 +198,7 @@ module.exports = {
           });
         }
 
-        const execResult = await aiActions.executeActions(json.actions);
+        const execResult = await aiActions.executeActions(json.actions, req.user.id);
         console.log("EXEC RESULT >>>", execResult);
 
         const io = req.app.get("io");

@@ -37,36 +37,32 @@ module.exports = {
    * }
    */
 
-  async executeActions(actions = []) {
+  async executeActions(actions = [], userId) {
     const results = [];
 
-    // Helper para buscar card case-insensitive (Postgres/Sequelize)
-    // Se o banco for Postgres, Op.iLike funciona. Se for SQLite, LIKE pode ser case-insensitive por padrão ou precisa de setup.
-    // Vamos assumir Postgres dado o contexto, mas se falhar, podemos ajustar.
     async function findCard(title) {
       if (!title) return null;
 
-      // Tenta exato primeiro (performance)
-      let card = await Card.findOne({ where: { title } });
+      // 1. Exact match with userId
+      let card = await Card.findOne({ where: { title, userId } });
       if (card) return card;
 
-      // Tenta insensível a caixa
-      // Op.iLike é específico do Postgres. Se der erro em outro DB, cairá no catch do loop.
+      // 2. Case-insensitive match with userId
       try {
         return await Card.findOne({
           where: {
-            title: { [Op.iLike]: title }
+            title: { [Op.iLike]: title },
+            userId
           }
         });
       } catch (e) {
-        // Fallback se Op.iLike não suportado (ex: SQLite sem extensão)
-        // Tenta buscar TODOS e filtrar no JS (lento, mas funcional para poucos cards)
-        // Ou tentar Op.like
+        // Fallback for non-Postgres
         return await Card.findOne({
           where: {
-            title: { [Op.like]: title }
+            title: { [Op.like]: title },
+            userId
           }
-        })
+        });
       }
     }
 
@@ -94,6 +90,7 @@ module.exports = {
             workedHours: 0,
             assignee: null,
             labels: Array.isArray(action.labels) ? action.labels : [],
+            userId: userId, // CRITICAL: Assign to user
           });
 
           results.push({
@@ -625,6 +622,9 @@ module.exports = {
             query.deadline = { [Op.gt]: where.deadlineAfter };
           }
 
+          // Enforce userId
+          query.userId = userId;
+
           const cards = await Card.findAll({ where: query });
 
           for (const c of cards) {
@@ -688,6 +688,7 @@ module.exports = {
             const today = new Date().toISOString().substring(0, 10);
 
             const all = await Card.findAll({
+              where: { userId },
               order: [["deadline", "ASC"]],
             });
 
@@ -722,6 +723,7 @@ module.exports = {
             const today = new Date().toISOString().substring(0, 10);
 
             const all = await Card.findAll({
+              where: { userId },
               order: [["deadline", "ASC"]],
             });
 
@@ -776,12 +778,12 @@ module.exports = {
             // 🔎 FILTRAR POR COLUNA ESPECÍFICA
             else if (action.columnId) {
               cards = await Card.findAll({
-                where: { columnId: action.columnId }
+                where: { columnId: action.columnId, userId }
               });
             }
-            // 🔎 SEM FILTRO → GLOBAL
+            // 🔎 SEM FILTRO → GLOBAL (Users Scope)
             else {
-              cards = await Card.findAll();
+              cards = await Card.findAll({ where: { userId } });
             }
 
             // Se não existir cards filtrados

@@ -66,14 +66,24 @@ export default function RegisterPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-[#0F1A2F] border border-emerald-500/30 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center animate-in fade-in zoom-in duration-300">
             <div className="size-16 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Loader2 className="text-emerald-400 size-8 animate-pulse" />
+              <Loader2 className="text-emerald-400 size-8 animate-spin" />
             </div>
             <h2 className="text-xl font-bold text-white mb-2">
               Conta criada com sucesso!
             </h2>
             <p className="text-slate-400 text-sm mb-6">
-              Você será redirecionado para o login em instantes...
+              Redirecionando para o login...
             </p>
+            {/* Progress Bar */}
+            <div className="w-full bg-slate-800 rounded-full h-1.5 mb-6 overflow-hidden">
+              <div className="bg-emerald-500 h-full rounded-full animate-[width_3s_ease-in-out_forwards]" style={{ width: '0%' }} />
+            </div>
+            <style jsx>{`
+                @keyframes width {
+                    from { width: 0%; }
+                    to { width: 100%; }
+                }
+            `}</style>
             <button
               onClick={() => router.push("/login")}
               className="w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium"
