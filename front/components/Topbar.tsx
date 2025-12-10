@@ -62,7 +62,7 @@ export default function Topbar({ userName, onLogout, onSearchClick, onStatClick,
             <LayoutDashboard size={20} />
           </div>
           <span className="text-lg font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-            TaskAI
+            Kanbanize
           </span>
         </div>
 
