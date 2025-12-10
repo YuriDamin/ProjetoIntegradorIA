@@ -40,30 +40,61 @@ module.exports = {
   async executeActions(actions = [], userId) {
     const results = [];
 
-    async function findCard(title) {
-      if (!title) return null;
+    async function findCard(rawTitle) {
+      if (!rawTitle) return null;
 
-      // 1. Exact match with userId
+      // 1. Clean up common prefixes that AI might include
+      let title = rawTitle
+        .replace(/^(card|tarefa|o card|a tarefa)\s+/i, "")
+        .replace(/["']/g, "") // remove quotes
+        .trim();
+
+      // 2. Exact match with userId
       let card = await Card.findOne({ where: { title, userId } });
       if (card) return card;
 
-      // 2. Case-insensitive match with userId
+      // 3. Case-insensitive match with userId
       try {
-        return await Card.findOne({
+        card = await Card.findOne({
           where: {
             title: { [Op.iLike]: title },
             userId
           }
         });
+        if (card) return card;
       } catch (e) {
         // Fallback for non-Postgres
-        return await Card.findOne({
+        card = await Card.findOne({
           where: {
             title: { [Op.like]: title },
             userId
           }
         });
+        if (card) return card;
       }
+
+      // 4. Fuzzy match (contains) - Fail-safe
+      if (title.length > 3) {
+        try {
+          card = await Card.findOne({
+            where: {
+              title: { [Op.iLike]: `%${title}%` },
+              userId
+            }
+          });
+          if (card) return card;
+        } catch (e) {
+          card = await Card.findOne({
+            where: {
+              title: { [Op.like]: `%${title}%` },
+              userId
+            }
+          });
+          if (card) return card;
+        }
+      }
+
+      return null;
     }
 
     for (const action of actions) {
@@ -217,17 +248,19 @@ module.exports = {
             action.cardTitle ||
             action.title ||
             action.nome;
-
           const deadline =
             action.deadline ||
             action.prazo ||
-            action.data;
+            action.data ||
+            action.date ||
+            action.newDeadline;
 
           if (!deadline) {
             results.push({
               ok: false,
               type: "update-deadline",
               error: "Nenhuma data informada",
+              details: `Received payload: ${JSON.stringify(action)}`,
               cardTitle,
             });
             continue;
@@ -236,10 +269,12 @@ module.exports = {
           const card = await findCard(cardTitle);
 
           if (!card) {
+            const all = await Card.findAll({ where: { userId }, attributes: ['title'] });
+            const available = all.map(c => c.title).join(", ");
             results.push({
               ok: false,
               type: "update-deadline",
-              error: "Card não encontrado",
+              error: `Card não encontrado. Disponíveis: [${available}]`,
               cardTitle,
             });
             continue;
@@ -289,10 +324,7 @@ module.exports = {
         if (action.type === "update-checklist-item") {
           const cardTitle = action.cardTitle || action.title || action.nome;
           const itemTitle = action.itemTitle || action.item || action.texto;
-          const isDone = action.isDone === true || action.done === true; // Default false if undefined? Probably true if action is update.
-
-          // If AI sends "isDone" explicitly.
-          // If user says "mark done", AI sends isDone: true.
+          const isDone = action.isDone === true || action.done === true;
 
           if (!itemTitle) {
             results.push({ ok: false, type: "update-checklist-item", error: "Item não informado" });
@@ -305,44 +337,88 @@ module.exports = {
             continue;
           }
 
-          // Find Item
-          // Try exact match or iLike
-          let item = await Checklist.findOne({ where: { cardId: card.id, text: itemTitle } });
-          if (!item) {
-            // Try iLike
-            try {
-              item = await Checklist.findOne({
-                where: {
-                  cardId: card.id,
-                  text: { [Op.iLike]: itemTitle }
+          // Fetch ALL checklist items for this card
+          const allItems = await Checklist.findAll({ where: { cardId: card.id } });
+
+          // Helper: Levenshtein Distance
+          const levenshtein = (a, b) => {
+            const matrix = [];
+            for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+            for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+            for (let i = 1; i <= b.length; i++) {
+              for (let j = 1; j <= a.length; j++) {
+                if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                  matrix[i][j] = matrix[i - 1][j - 1];
+                } else {
+                  matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1, // substitution
+                    matrix[i][j - 1] + 1,     // insertion
+                    matrix[i - 1][j] + 1      // deletion
+                  );
                 }
-              });
-            } catch (e) { }
-          }
-          // Try partial match if not found? "%itemTitle%"
-          if (!item) {
-            try {
-              item = await Checklist.findOne({
-                where: {
-                  cardId: card.id,
-                  text: { [Op.iLike]: `%${itemTitle}%` }
-                }
-              });
-            } catch (e) { }
+              }
+            }
+            return matrix[b.length][a.length];
+          };
+
+          // Find Best Match
+          let bestMatch = null;
+          let bestScore = Infinity; // Lower is better
+          const target = itemTitle.toLowerCase();
+
+          for (const it of allItems) {
+            const current = it.text.toLowerCase();
+
+            // 1. Exact or Substring (High Priority)
+            if (current === target) {
+              bestMatch = it;
+              bestScore = 0;
+              break;
+            }
+            if (current.includes(target) || target.includes(current)) {
+              // Prefer the one with closer length
+              const score = Math.abs(current.length - target.length) * 0.1;
+              if (score < bestScore) {
+                bestScore = score;
+                bestMatch = it;
+              }
+            }
+
+            // 2. Levenshtein
+            const dist = levenshtein(current, target);
+            // Normalizing score by length to avoid punishing long strings too much?
+            // Simple dist is enough for now, but large strings might have large dist even if similar.
+            // Let's use raw dist but only accept if dist < Threshold
+            if (dist < bestScore) {
+              bestScore = dist;
+              bestMatch = it;
+            }
           }
 
-          if (!item) {
-            results.push({ ok: false, type: "update-checklist-item", error: `Item "${itemTitle}" não encontrado no card "${card.title}"` });
+          // Threshold: Allow up to ~40% difference or fixed char diff
+          // "Calcular gasto de gasolina" (24 chars) vs "cálculo de gasolina" (19 chars)
+          // Levenshtein will be around 5-8.
+          // Let's say if bestScore is reasonable relative to string length.
+
+          const threshold = Math.max(5, target.length * 0.5);
+
+          if (!bestMatch || bestScore > threshold) {
+            results.push({
+              ok: false,
+              type: "update-checklist-item",
+              error: `Item "${itemTitle}" não encontrado no card "${card.title}" (Melhor match: ${bestMatch?.text ?? "Nenhum"} - Score: ${bestScore})`
+            });
             continue;
           }
 
-          await item.update({ done: isDone });
+          await bestMatch.update({ done: isDone });
 
           results.push({
             ok: true,
             type: "update-checklist-item",
             cardTitle: card.title,
-            itemTitle: item.text,
+            itemTitle: bestMatch.text,
             isDone
           });
           continue;

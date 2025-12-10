@@ -34,9 +34,22 @@ export default function Topbar({ userName, onLogout, onSearchClick, onStatClick,
   }, [refreshTrigger]);
 
   useEffect(() => {
-    // Optional: Poll every minute
+    // Poll every minute
     const interval = setInterval(fetchStats, 60000);
-    return () => clearInterval(interval);
+
+    // Listen to Board Updates (from websocket or other components)
+    const handleBoardUpdate = () => {
+      fetchStats();
+    };
+    window.addEventListener("board-updated", handleBoardUpdate);
+
+    // Initial fetch
+    fetchStats();
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("board-updated", handleBoardUpdate);
+    };
   }, []);
 
   return (

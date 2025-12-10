@@ -13,6 +13,7 @@ import {
   Draggable,
   DropResult,
 } from "@hello-pangea/dnd";
+import { io } from "socket.io-client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 
@@ -141,9 +142,9 @@ export default function CalendarPage() {
     setStatsTick(prev => prev + 1);
   }, []);
 
-  async function loadBoard() {
+  async function loadBoard(isBackground = false) {
     try {
-      setLoading(true);
+      if (!isBackground) setLoading(true);
       const res = await fetch("/api/columns", { credentials: "include" });
       const json = (await res.json()) as BoardData;
       setBoard(json);
@@ -151,12 +152,30 @@ export default function CalendarPage() {
     } catch (err) {
       console.error("Erro ao carregar board (calendar):", err);
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   }
 
   useEffect(() => {
     loadBoard();
+  }, []);
+
+  useEffect(() => {
+    const socket = io("http://localhost:3001", {
+      withCredentials: true,
+    });
+
+    socket.on("board-updated", () => {
+      // Dispatch global event for Topbar
+      window.dispatchEvent(new Event("board-updated"));
+
+      // Reload calendar data in background
+      loadBoard(true);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   function getAllCards(): Card[] {

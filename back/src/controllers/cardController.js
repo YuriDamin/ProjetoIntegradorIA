@@ -67,7 +67,6 @@ module.exports = {
         if (isNaN(d.getTime())) continue;
 
         const cardDateStr = d.toISOString().split('T')[0];
-        console.log(`[Stats Debug] Card ${card.id}: DeadlineRaw=${card.deadline}, UTC=${cardDateStr}, TodayData=${todayStr}`);
 
         if (cardDateStr < todayStr) {
           overdue++;
@@ -114,6 +113,9 @@ module.exports = {
         columnId,
         userId: req.user.id,
       });
+
+      const io = req.app.get("io");
+      if (io) io.emit("board-updated");
 
       return res.status(201).json({
         ...card.dataValues,
@@ -182,6 +184,9 @@ module.exports = {
 
       const updated = await Card.findByPk(id, { include: [Checklist] });
 
+      const io = req.app.get("io");
+      if (io) io.emit("board-updated");
+
       return res.json({
         ...updated.dataValues,
         description: updated.description ?? "",
@@ -202,6 +207,9 @@ module.exports = {
 
       await Checklist.destroy({ where: { cardId: id } });
       await Card.destroy({ where: { id, userId: req.user.id } });
+
+      const io = req.app.get("io");
+      if (io) io.emit("board-updated");
 
       return res.json({ message: "Card removido com sucesso" });
 
@@ -230,6 +238,9 @@ module.exports = {
       });
 
       const updated = await Card.findByPk(id, { include: [Checklist] });
+
+      const io = req.app.get("io");
+      if (io) io.emit("board-updated");
 
       return res.json({
         ...updated.dataValues,

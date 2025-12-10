@@ -89,6 +89,9 @@ export default function BoardPage() {
     });
 
     socket.on("board-updated", () => {
+      // 1. Dispatch global event for Topbar and other components
+      window.dispatchEvent(new Event("board-updated"));
+
       if (window.chatbotOpen) return;
       loadBoard(true); // Background update
     });
@@ -102,6 +105,7 @@ export default function BoardPage() {
   useEffect(() => {
     function handleChatbotUpdate() {
       console.log("🔥 EVENTO RECEBIDO DO CHATBOT");
+
       // Show indicator
       const el = document.getElementById("ai-indicator");
       if (el) el.classList.add("ai-updating");
@@ -114,9 +118,14 @@ export default function BoardPage() {
       });
     }
 
+    // Listen to BOTH names to be safe, or just enforce one.
     window.addEventListener("board-update", handleChatbotUpdate);
-    return () =>
+    window.addEventListener("board-updated", handleChatbotUpdate);
+
+    return () => {
       window.removeEventListener("board-update", handleChatbotUpdate);
+      window.removeEventListener("board-updated", handleChatbotUpdate);
+    };
   }, []);
 
   // 🔹 Helper functions for Search
